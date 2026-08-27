@@ -52,7 +52,7 @@ def execute_simulation(setup: SimulationSetup) -> SimulationResult:
     presenter = ProgressPresenter(console)
     presenter.started(setup.config.population_size)
     try:
-        result = asyncio.run(SimulationEngine().run(setup.scenario, setup.config, presenter.update))
+        result = asyncio.run(SimulationEngine().run(setup.scenario, setup.config, day_observer=presenter.report))
     except KeyboardInterrupt as error:
         console.print("\n[warning]Simulation stopped safely. No partial run was saved.[/warning]")
         raise typer.Exit(130) from error

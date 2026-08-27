@@ -60,3 +60,15 @@ class SimulationSummary(BaseModel):
     average_purchase_intent: float
     insights: list[str]
     disclaimer: str = "Results represent a synthetic population under selected assumptions, not real-world survey statistics."
+
+
+class DayReport(BaseModel):
+    """Structured presentation event emitted after one simulated day."""
+
+    day: int
+    total_days: int
+    reactions: int
+    events: int
+    awareness: int
+    opinion_changes: int
+    actions: dict[str, int]

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -11,7 +12,7 @@ from manas.analytics.insights import analyze
 from manas.behavior.engine import BehaviorEngine
 from manas.population.generator import PopulationGenerator
 from manas.reasoning.base import NoOpReasoningEngine, ReasoningEngine
-from manas.simulation.models import Decision, ProductScenario, SimulationConfig, SimulationEvent, SimulationSummary
+from manas.simulation.models import DayReport, Decision, ProductScenario, SimulationConfig, SimulationEvent, SimulationSummary
 from manas.simulation.scheduler import EventScheduler
 from manas.society.graph import SocietyGraph
 from manas.society.influence import influence_shift
@@ -38,7 +39,8 @@ class SimulationEngine:
 
     async def run(self, scenario: ProductScenario, config: SimulationConfig,
                   progress: Callable[[int, int, str], None] | None = None,
-                  base_agents: list[Agent] | None = None) -> SimulationResult:
+                  base_agents: list[Agent] | None = None,
+                  day_observer: Callable[[DayReport], None] | None = None) -> SimulationResult:
         rng = seeded(config.seed, "simulation")
         agents = [a.model_copy(deep=True) for a in base_agents] if base_agents else PopulationGenerator(config.seed, config.population_pack).generate(config.population_size)
         by_id = {agent.id: agent for agent in agents}
@@ -53,6 +55,9 @@ class SimulationEngine:
         scheduler.schedule(SimulationEvent(id="event_000001", day=1, event_type="product_seen", target_agent_ids=initial_targets, intensity=.65))
         sequence = 2
         for day in range(1, config.days + 1):
+            decision_start = len(decisions)
+            event_start = len(events)
+            change_start = opinion_changes
             # Organic media/review events reach a subset; idle agents are never evaluated.
             if day in {3, 7, 12, 18, 24} and day <= config.days:
                 event_type = rng.choice(["ad_seen", "positive_review", "negative_review", "influencer_mention", "viral_discussion"])
@@ -91,6 +96,17 @@ class SimulationEngine:
                             self._apply_social_influence(agent, targets, by_id, society, followup, sequence)
                             sequence += 1
             self._daily_drift(agents, rng)
+            if day_observer:
+                daily_decisions = decisions[decision_start:]
+                day_observer(DayReport(
+                    day=day,
+                    total_days=config.days,
+                    reactions=len(daily_decisions),
+                    events=len(events) - event_start,
+                    awareness=sum(agent.opinion.awareness > .05 for agent in agents),
+                    opinion_changes=opinion_changes - change_start,
+                    actions=dict(Counter(decision.action for decision in daily_decisions)),
+                ))
             if progress:
                 progress(day, config.days, f"Day {day}: {len(decisions)} reactions")
             await asyncio.sleep(0)

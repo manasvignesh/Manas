@@ -10,7 +10,7 @@ from rich.table import Table
 from manas.agents.models import Agent
 from manas.cli.formatting import money
 from manas.simulation.engine import SimulationResult
-from manas.simulation.models import Decision, ProductScenario, SimulationConfig
+from manas.simulation.models import DayReport, Decision, ProductScenario, SimulationConfig
 
 
 DISCLAIMER = "These results describe this simulated population and are not equivalent to real-world survey statistics."
@@ -51,6 +51,18 @@ class ProgressPresenter:
         if day == 1 or day == total or day % 5 == 0:
             self.console.print(f"\n[heading]Day {day:02d}[/heading]")
             self.console.print(message, style="muted")
+
+    def report(self, report: DayReport) -> None:
+        if report.day != 1 and report.day != report.total_days and report.day % 5:
+            return
+        self.console.print(f"\n[heading]Day {report.day:02d}[/heading]")
+        if report.actions:
+            action, count = max(report.actions.items(), key=lambda item: item[1])
+            self.console.print(f"{report.reactions} reactions; {report.opinion_changes} significant opinion shifts.")
+            self.console.print(f"Most common response: {action.replace('_', ' ')} ({count}).")
+        else:
+            self.console.print("No major reaction was triggered today.")
+        self.console.print(f"{report.awareness} agents have encountered the idea.", style="muted")
 
 
 def _notable_decisions(result: SimulationResult, limit: int = 3) -> list[tuple[Agent, Decision]]:
@@ -129,8 +141,11 @@ def show_agent(console: Console, result: SimulationResult, agent: Agent) -> None
         console.print(f"- {goal}")
     console.print("\n[heading]Relevant memories[/heading]")
     memories = agent.relevant_memories(result.config.days, 4)
-    for memory in memories:
-        console.print(f"- Day {memory.day}: {memory.content}")
+    if memories:
+        for memory in memories:
+            console.print(f"- Day {memory.day}: {memory.content}")
+    else:
+        console.print("- No salient memories recorded", style="muted")
     decisions = [d for d in result.decisions if d.agent_id == agent.id]
     if decisions:
         console.print("\n[heading]Why?[/heading]")

@@ -4,8 +4,8 @@ from manas.simulation.engine import SimulationEngine
 from manas.simulation.models import ProductScenario, SimulationConfig
 
 
-def run(seed=42):
-    return asyncio.run(SimulationEngine().run(ProductScenario(name="AI fitness coach", description="Personalized fitness", price=399, pricing_model="monthly", category="fitness"), SimulationConfig(population_size=35, days=10, seed=seed)))
+def run(seed=42, day_observer=None):
+    return asyncio.run(SimulationEngine().run(ProductScenario(name="AI fitness coach", description="Personalized fitness", price=399, pricing_model="monthly", category="fitness"), SimulationConfig(population_size=35, days=10, seed=seed), day_observer=day_observer))
 
 
 def fingerprint(result):
@@ -25,3 +25,13 @@ def test_simulation_is_seed_reproducible_and_integral():
 
 def test_different_seed_changes_outcome():
     assert fingerprint(run(1)) != fingerprint(run(2))
+
+
+def test_structured_day_reports_do_not_change_simulation():
+    reports = []
+    observed = run(day_observer=reports.append)
+    plain = run()
+    assert fingerprint(observed) == fingerprint(plain)
+    assert len(reports) == 10
+    assert reports[-1].day == 10
+    assert all(0 <= report.awareness <= 35 for report in reports)
