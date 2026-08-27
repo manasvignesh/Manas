@@ -1,4 +1,4 @@
-# Contributing to CrowdForge
+# Contributing to MANAS
 
 Thank you for helping make synthetic simulations more transparent and useful.
 
@@ -11,4 +11,3 @@ Thank you for helping make synthetic simulations more transparent and useful.
 New population packs must include metadata, limitations, and provenance. New behavior factors must remain inspectable. Reasoning providers must return structured output and remain optional.
 
 By participating, you agree to follow the code of conduct and license your contribution under Apache-2.0.
-

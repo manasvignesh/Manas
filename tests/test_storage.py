@@ -1,4 +1,4 @@
-from crowdforge.storage import Database, SimulationRepository
+from manas.storage import Database, SimulationRepository
 from tests.test_simulation import run
 
 
@@ -10,4 +10,3 @@ def test_storage_round_trip(tmp_path):
     assert loaded.summary == result.summary
     assert len(loaded.agents) == len(result.agents)
     assert loaded.graph.graph.number_of_edges() == result.graph.graph.number_of_edges()
-

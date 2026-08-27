@@ -1,7 +1,7 @@
-from crowdforge.behavior.engine import BehaviorEngine
-from crowdforge.population.generator import PopulationGenerator
-from crowdforge.simulation.models import ProductScenario, SimulationEvent
-from crowdforge.utils.random import seeded
+from manas.behavior.engine import BehaviorEngine
+from manas.population.generator import PopulationGenerator
+from manas.simulation.models import ProductScenario, SimulationEvent
+from manas.utils.random import seeded
 
 
 def test_decision_is_distribution_and_explainable():
@@ -12,4 +12,3 @@ def test_decision_is_distribution_and_explainable():
     assert abs(sum(decision.probabilities.values()) - 1) < 1e-9
     assert set(decision.probabilities) == {"buy", "try_free", "research", "ask_friend", "ignore", "reject"}
     assert decision.explanation
-

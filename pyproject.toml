@@ -3,13 +3,13 @@ requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
 [project]
-name = "crowdforge"
-version = "0.1.0"
-description = "A local-first synthetic society simulator for exploring ideas."
+name = "manas"
+version = "0.2.0"
+description = "Many Agents, Networked Adaptive Society - a local-first synthetic society simulator."
 readme = "README.md"
 requires-python = ">=3.11"
 license = {file = "LICENSE"}
-authors = [{name = "CrowdForge contributors"}]
+authors = [{name = "MANAS contributors"}]
 dependencies = [
   "networkx>=3.2",
   "pydantic>=2.6",
@@ -22,12 +22,12 @@ dependencies = [
 dev = ["pytest>=8", "pytest-asyncio>=0.23"]
 
 [project.scripts]
-crowdforge = "crowdforge.cli.app:app"
+manas = "manas.cli.app:app"
+crowdforge = "manas.cli.compat:legacy_command"
 
 [tool.hatch.build.targets.wheel]
-packages = ["crowdforge"]
+packages = ["manas"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
-

@@ -1,7 +1,7 @@
 import asyncio
 
-from crowdforge.simulation.engine import SimulationEngine
-from crowdforge.simulation.models import ProductScenario, SimulationConfig
+from manas.simulation.engine import SimulationEngine
+from manas.simulation.models import ProductScenario, SimulationConfig
 
 
 def run(seed=42):
@@ -25,4 +25,3 @@ def test_simulation_is_seed_reproducible_and_integral():
 
 def test_different_seed_changes_outcome():
     assert fingerprint(run(1)) != fingerprint(run(2))
-

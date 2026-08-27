@@ -1,10 +1,10 @@
-# CrowdForge
+# MANAS
 
 **One idea. Many synthetic perspectives.**
 
-CrowdForge is a local-first CLI and terminal application that creates a persistent synthetic society, introduces a product idea, and lets opinions evolve through probabilistic behavior and social interaction. It is useful for discovering plausible objections, motivations, segments, and second-order effects before real research.
+MANAS is a local-first CLI and terminal application that creates a persistent synthetic society, introduces a product idea, and lets opinions evolve through probabilistic behavior and social interaction. It is useful for discovering plausible objections, motivations, segments, and second-order effects before real research.
 
-CrowdForge is **not** an oracle, a survey, or a replacement for talking to people. Its output describes an experimental synthetic population under explicit assumptions—not real market statistics.
+MANAS is **not** an oracle, a survey, or a replacement for talking to people. Its output describes an experimental synthetic population under explicit assumptions—not real market statistics.
 
 ## Quick start
 
@@ -12,14 +12,14 @@ Requires Python 3.11 or newer.
 
 ```bash
 pip install -e .
-crowdforge init
-crowdforge simulate --idea "AI fitness coach" --population 100 --days 30 --seed 42 --price 399 --pricing-model monthly
+manas init
+manas simulate --idea "AI fitness coach" --population 100 --days 30 --seed 42 --price 399 --pricing-model monthly
 ```
 
 Launch the Textual interface with:
 
 ```bash
-crowdforge
+manas
 ```
 
 No API key, cloud account, or local language model is required.
@@ -27,14 +27,14 @@ No API key, cloud account, or local language model is required.
 ## Commands
 
 ```text
-crowdforge init
-crowdforge simulate [--idea ...] [--population 100] [--days 30] [--seed 42]
-crowdforge replay RUN_ID [--price 199]
-crowdforge compare RUN_A RUN_B
-crowdforge agents RUN_ID
-crowdforge export RUN_ID --formats json,csv,markdown
-crowdforge settings
-crowdforge info
+manas init
+manas simulate [--idea ...] [--population 100] [--days 30] [--seed 42]
+manas replay RUN_ID [--price 199]
+manas compare RUN_A RUN_B
+manas agents RUN_ID
+manas export RUN_ID --formats json,csv,markdown
+manas settings
+manas info
 ```
 
 `--debug` exposes the latest structured decision distribution and modifiers. Fixed seeds make non-AI runs reproducible.
@@ -59,11 +59,11 @@ event scheduler → behavior modifiers → action distribution
                              analytics → SQLite / exports
 ```
 
-The package separates `agents`, `population`, `society`, `behavior`, `simulation`, `reasoning`, `analytics`, `storage`, and `cli`. `ReasoningEngine` is provider-neutral; the default is a no-op, a deterministic mock is included, and `LocalReasoningEngine` accepts any structured JSON provider. CrowdForge never downloads a model implicitly.
+The package separates `agents`, `population`, `society`, `behavior`, `simulation`, `reasoning`, `analytics`, `storage`, and `cli`. `ReasoningEngine` is provider-neutral; the default is a no-op, a deterministic mock is included, and `LocalReasoningEngine` accepts any structured JSON provider. MANAS never downloads a model implicitly.
 
 ## Data and privacy
 
-Local configuration and SQLite data default to `~/.crowdforge/`. Set `CROWDFORGE_HOME` to use another directory. Exported JSON, CSV, and Markdown are written only when requested.
+Local configuration and SQLite data default to `~/.manas/`. Set `MANAS_HOME` to use another directory. Exported JSON, CSV, and Markdown are written only when requested.
 
 ## Screenshots
 
@@ -80,9 +80,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Useful next steps include additional pop
 
 ## Disclaimer
 
-Synthetic results are exploratory artifacts. Validate decisions with real users, representative research, domain expertise, and appropriate ethical review. Do not use CrowdForge output to make high-stakes decisions about individuals.
+Synthetic results are exploratory artifacts. Validate decisions with real users, representative research, domain expertise, and appropriate ethical review. Do not use MANAS output to make high-stakes decisions about individuals.
 
 ## License
 
 Apache-2.0.
-

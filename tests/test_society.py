@@ -1,7 +1,7 @@
 import networkx as nx
 
-from crowdforge.population.generator import PopulationGenerator
-from crowdforge.society.graph import SocietyGraph
+from manas.population.generator import PopulationGenerator
+from manas.society.graph import SocietyGraph
 
 
 def test_social_graph_is_valid_connected_and_clustered():
@@ -12,4 +12,3 @@ def test_social_graph_is_valid_connected_and_clustered():
     assert set(graph.nodes) == {a.id for a in agents}
     assert all(0 <= data["trust"] <= 1 for *_, data in graph.edges(data=True))
     assert nx.average_clustering(graph) > 0
-

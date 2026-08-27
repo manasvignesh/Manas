@@ -1,1 +1,1 @@
-"""CrowdForge test suite."""
+"""MANAS test suite."""
