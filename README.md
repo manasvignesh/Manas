@@ -1,73 +1,97 @@
 # MANAS
 
-**One idea. Many synthetic perspectives.**
+**Many Agents, Networked Adaptive Society**
 
-MANAS is a local-first CLI and terminal application that creates a persistent synthetic society, introduces a product idea, and lets opinions evolve through probabilistic behavior and social interaction. It is useful for discovering plausible objections, motivations, segments, and second-order effects before real research.
+**One idea. Many minds.**
 
-MANAS is **not** an oracle, a survey, or a replacement for talking to people. Its output describes an experimental synthetic population under explicit assumptions—not real market statistics.
+MANAS is an open-source, local-first synthetic society simulation engine. Introduce a product, service, feature, policy, or other scenario and explore how many persistent synthetic individuals might plausibly respond as they encounter it, discuss it, and change their minds.
+
+MANAS is an exploratory tool—not an oracle, survey, or replacement for real people. Its results describe a synthetic population under selected assumptions and are not real-world market statistics.
 
 ## Quick start
 
-Requires Python 3.11 or newer.
+MANAS requires Python 3.11 or newer.
 
 ```bash
-pip install -e .
+pip install -e ".[dev]"
 manas init
-manas simulate --idea "AI fitness coach" --population 100 --days 30 --seed 42 --price 399 --pricing-model monthly
-```
-
-Launch the Textual interface with:
-
-```bash
 manas
 ```
 
-No API key, cloud account, or local language model is required.
+Running `manas` opens a minimal conversational flow. It asks one question at a time and uses the same simulation API as scriptable commands.
+
+No API key, cloud account, or language model is required.
+
+## Non-interactive simulation
+
+```bash
+manas simulate \
+  --idea "AI fitness coach for Indian college students" \
+  --population 100 \
+  --days 30 \
+  --seed 42 \
+  --price 399 \
+  --pricing-model monthly
+```
+
+You can also run MANAS as a Python module:
+
+```bash
+python -m manas
+```
 
 ## Commands
 
 ```text
+manas
 manas init
-manas simulate [--idea ...] [--population 100] [--days 30] [--seed 42]
-manas replay RUN_ID [--price 199]
+manas simulate
+manas replay RUN_ID
 manas compare RUN_A RUN_B
-manas agents RUN_ID
+manas agents RUN_ID [--search NAME]
 manas export RUN_ID --formats json,csv,markdown
+manas models
 manas settings
 manas info
 ```
 
-`--debug` exposes the latest structured decision distribution and modifiers. Fixed seeds make non-AI runs reproducible.
+Use `manas simulate --debug` to inspect action probabilities, behavioral modifiers, and structured explanations. Normal output filters internal mechanics and surfaces only milestones, notable reactions, and emerging signals.
 
-## What is simulated
+Fixed seeds make non-AI runs reproducible. Replays regenerate the same base society and seed while applying controlled scenario changes.
 
-Each person has persistent identity, demographic context, personality, values, goals, financial context, contradictions, dynamic state, multidimensional product opinion, relationships, and compact decaying memories. Agents are computational entities—not prompts.
+## What MANAS simulates
 
-The India V1 population pack uses configurable synthetic distributions across regions, urbanicity, occupation, education, income, language, household structure, technology familiarity, and interests. It is intentionally labeled experimental and does not claim census accuracy.
+Each synthetic person has persistent identity, demographic and financial context, personality, values, goals, contradictions, dynamic state, multidimensional product opinions, relationships, and compact memories that decay in relevance.
 
-The social network uses homophily and community structure with cross-group weak ties. Only agents affected by scheduled or propagated events are evaluated. Decisions come from separate interest, financial, trust, social, memory, goal, emotion, contradiction, urgency, novelty, and risk modifiers, combined into an action distribution and sampled using seeded randomness.
+The experimental India V1 population pack generates variation across region, urbanicity, occupation, education, income, language, household structure, technology familiarity, and interests. It does not claim census accuracy.
 
-## Architecture
+The NetworkX society graph uses homophily, communities, and cross-group weak ties. The event-driven runtime evaluates only affected agents. Behavior is assembled from separate interest, financial, trust, social, memory, goal, emotion, contradiction, urgency, novelty, and risk modifiers, producing an inspectable probability distribution before seeded sampling.
 
 ```text
-population pack → persistent agents → clustered society graph
-                                       ↓
-event scheduler → behavior modifiers → action distribution
-                                       ↓
-                  memories ← opinion evolution → social propagation
-                                       ↓
-                             analytics → SQLite / exports
+population pack -> persistent agents -> clustered society graph
+                                        |
+event scheduler -> behavior modifiers -> action distribution
+                                        |
+                   memories <- opinion evolution -> social propagation
+                                        |
+                              analytics -> SQLite / exports
 ```
 
-The package separates `agents`, `population`, `society`, `behavior`, `simulation`, `reasoning`, `analytics`, `storage`, and `cli`. `ReasoningEngine` is provider-neutral; the default is a no-op, a deterministic mock is included, and `LocalReasoningEngine` accepts any structured JSON provider. MANAS never downloads a model implicitly.
+Core simulation modules never print terminal output. The Rich/Typer presentation layer decides what users see.
 
-## Data and privacy
+## Optional local models
 
-Local configuration and SQLite data default to `~/.manas/`. Set `MANAS_HOME` to use another directory. Exported JSON, CSV, and Markdown are written only when requested.
+The core engine runs without a model. `manas models` can discover installed Ollama models, GGUF files, llama.cpp-compatible files, and manually configured paths. It also inspects CPU, RAM, available disk, and supported GPU information before offering model-class guidance.
 
-## Screenshots
+MANAS never downloads or deletes a model file without explicit user action. The provider-neutral `ReasoningEngine` remains an optional enhancement for ambiguity and natural-language nuance.
 
-Terminal screenshots will be added as the interface evolves.
+## Storage and migration
+
+Configuration and SQLite data default to `~/.manas/`. Set `MANAS_HOME` to use another directory.
+
+During `manas init`, development data under `~/.crowdforge/` can be detected and copied after confirmation. The original directory is preserved. The temporary `crowdforge` command prints a rename notice and directs users to `manas`; it does not maintain a second implementation.
+
+Exports are written only when requested and support JSON, CSV, and Markdown.
 
 ## Development
 
@@ -76,7 +100,9 @@ pip install -e ".[dev]"
 pytest
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Useful next steps include additional population packs and scenarios, calibrated behavioral modules, richer comparison views, independent data-pack updates, and optional local/provider reasoning adapters.
+The test suite covers population generation, social graph integrity, memory decay, behavior distributions, seeded reproducibility, event integrity, SQLite round trips, interactive setup, CLI flows, module execution, exports, replay/comparison, model discovery, and absence of Textual.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) before submitting behavior or population changes. New population packs must document assumptions and limitations. New behavior factors must remain inspectable.
 
 ## Disclaimer
 
@@ -84,4 +110,4 @@ Synthetic results are exploratory artifacts. Validate decisions with real users,
 
 ## License
 
-Apache-2.0.
+MIT. See [LICENSE](LICENSE).
