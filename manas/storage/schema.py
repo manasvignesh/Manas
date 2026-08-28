@@ -33,4 +33,8 @@ CREATE TABLE IF NOT EXISTS cascades (
     simulation_id TEXT NOT NULL, information_id TEXT NOT NULL, data_json TEXT NOT NULL,
     PRIMARY KEY (simulation_id, information_id), FOREIGN KEY (simulation_id) REFERENCES simulations(id) ON DELETE CASCADE
 );
+CREATE TABLE IF NOT EXISTS community_insights (
+    simulation_id TEXT NOT NULL, name TEXT NOT NULL, data_json TEXT NOT NULL,
+    PRIMARY KEY (simulation_id, name), FOREIGN KEY (simulation_id) REFERENCES simulations(id) ON DELETE CASCADE
+);
 """

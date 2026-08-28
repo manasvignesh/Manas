@@ -18,7 +18,11 @@ class SocietyGraph:
         self.graph.clear()
         for agent in agents:
             community = f"{agent.location}:{agent.occupation}"
-            self.graph.add_node(agent.id, community=community, region=agent.region)
+            occupation_label = "student" if agent.occupation == "student" else "office" if agent.occupation == "salaried professional" else agent.occupation
+            groups = [f"{agent.location} {occupation_label} circle", f"{agent.interests[0]} interest circle"]
+            if agent.household in {"joint family", "nuclear family", "couple"}:
+                groups.append(f"{agent.location} family network")
+            self.graph.add_node(agent.id, community=community, groups=groups, region=agent.region)
         target_degree = min(8, max(2, len(agents) // 12))
         candidates: list[tuple[float, str, str]] = []
         for i, first in enumerate(agents):

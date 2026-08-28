@@ -38,3 +38,11 @@ class OpinionCascade(BaseModel):
     reached: int
     communities: list[str]
     key_agent_id: str | None = None
+
+
+class CommunityInsight(BaseModel):
+    name: str
+    size: int
+    most_discussed: str
+    sentiment: str
+    key_agent_id: str

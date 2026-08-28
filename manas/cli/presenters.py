@@ -63,6 +63,9 @@ class ProgressPresenter:
         else:
             self.console.print("No major reaction was triggered today.")
         self.console.print(f"{report.awareness} agents have encountered the idea.", style="muted")
+        if report.spreading_topics:
+            topics = ", ".join(report.spreading_topics[:2])
+            self.console.print(f"A conversation about {topics} is spreading through social circles.", style="warning")
 
 
 def _notable_decisions(result: SimulationResult, limit: int = 3) -> list[tuple[Agent, Decision]]:
@@ -115,6 +118,14 @@ def show_summary(console: Console, result: SimulationResult) -> None:
     for insight in summary.insights:
         console.print(f"- {insight}")
     show_activity(console, result)
+    if result.cascades:
+        cascade = result.cascades[0]
+        console.print("\n[heading]Social ripple[/heading]")
+        console.print(f"A {cascade.topic} message reached {cascade.reached} people across {len(cascade.communities)} overlapping circles.")
+    if result.communities:
+        community = result.communities[0]
+        console.print("\n[heading]Most active circle[/heading]")
+        console.print(f"{community.name}: {community.size} people, {community.sentiment} response; most discussed: {community.most_discussed}.")
     console.print(DISCLAIMER, style="muted")
 
 

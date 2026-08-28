@@ -17,7 +17,7 @@ from manas.simulation.scheduler import EventScheduler
 from manas.society.graph import SocietyGraph
 from manas.society.influence import influence_shift
 from manas.society.information import information_from_decision, interpreted_claim
-from manas.society.models import InformationItem, OpinionCascade, SocialInteraction
+from manas.society.models import CommunityInsight, InformationItem, OpinionCascade, SocialInteraction
 from manas.utils.random import clamp, seeded
 
 
@@ -35,6 +35,7 @@ class SimulationResult:
     information: list[InformationItem] | None = None
     social_interactions: list[SocialInteraction] | None = None
     cascades: list[OpinionCascade] | None = None
+    communities: list[CommunityInsight] | None = None
 
 
 class SimulationEngine:
@@ -124,14 +125,19 @@ class SimulationEngine:
                     awareness=sum(agent.opinion.awareness > .05 for agent in agents),
                     opinion_changes=opinion_changes - change_start,
                     actions=dict(Counter(decision.action for decision in daily_decisions)),
+                    spreading_topics=sorted({item.topic for item in information if len(item.reached_agent_ids) >= 4}),
                 ))
             if progress:
                 progress(day, config.days, f"Day {day}: {len(decisions)} reactions")
             await asyncio.sleep(0)
         run_id = f"run_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:6]}"
+        cascades = self._detect_cascades(information, society)
+        community_insights = self._community_insights(agents, information, society)
         summary = analyze(run_id, config.seed, config.days, agents, decisions, society.graph, opinion_changes)
+        if cascades:
+            summary.insights.append(f"A {cascades[0].topic} concern or claim spread to {cascades[0].reached} people across {len(cascades[0].communities)} social circles.")
         return SimulationResult(run_id, datetime.now(timezone.utc).isoformat(), scenario, config, agents, society, events, decisions, summary,
-                                information, social_interactions, [])
+                                information, social_interactions, cascades, community_insights)
 
     def _update_agent(self, agent: Agent, event: SimulationEvent, decision: Decision, scenario: ProductScenario, sequence: int) -> None:
         f = decision.factors
@@ -188,3 +194,33 @@ class SimulationEngine:
             agent.state.motivation = clamp(agent.state.motivation + rng.uniform(-.02, .02))
             agent.state.peer_pressure *= .93
             agent.state.urgency *= .98
+
+    def _detect_cascades(self, information: list[InformationItem], society: SocietyGraph) -> list[OpinionCascade]:
+        cascades = []
+        for item in information:
+            reached = set(item.reached_agent_ids)
+            if len(reached) < 4:
+                continue
+            groups = sorted({group for agent_id in reached for group in society.graph.nodes[agent_id].get("groups", [])})
+            key = max(reached, key=lambda agent_id: society.graph.degree(agent_id))
+            cascades.append(OpinionCascade(information_id=item.id, topic=item.topic, claim=item.claim,
+                reached=len(reached), communities=groups, key_agent_id=key))
+        return sorted(cascades, key=lambda item: item.reached, reverse=True)
+
+    def _community_insights(self, agents: list[Agent], information: list[InformationItem], society: SocietyGraph) -> list[CommunityInsight]:
+        by_id = {agent.id: agent for agent in agents}
+        members: dict[str, set[str]] = {}
+        for agent_id, data in society.graph.nodes(data=True):
+            for group in data.get("groups", []):
+                members.setdefault(group, set()).add(agent_id)
+        insights = []
+        for name, group in members.items():
+            if len(group) < 3:
+                continue
+            topics = Counter(item.topic for item in information if group & set(item.reached_agent_ids))
+            score = sum(by_id[item].opinion.purchase_intent for item in group) / len(group)
+            sentiment = "positive" if score >= .58 else "negative" if score < .3 else "mixed"
+            key = max(group, key=lambda agent_id: society.graph.degree(agent_id))
+            insights.append(CommunityInsight(name=name, size=len(group), most_discussed=topics.most_common(1)[0][0] if topics else "the idea",
+                sentiment=sentiment, key_agent_id=key))
+        return sorted(insights, key=lambda item: item.size, reverse=True)

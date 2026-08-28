@@ -88,3 +88,4 @@ class DayReport(BaseModel):
     awareness: int
     opinion_changes: int
     actions: dict[str, int]
+    spreading_topics: list[str] = Field(default_factory=list)
