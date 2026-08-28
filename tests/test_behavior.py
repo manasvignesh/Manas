@@ -10,5 +10,8 @@ def test_decision_is_distribution_and_explainable():
     event = SimulationEvent(id="e", day=1, event_type="friend_recommendation", target_agent_ids=[agent.id], intensity=.8, sentiment=.7)
     decision = BehaviorEngine().evaluate(agent, scenario, event, seeded(2, "test"))
     assert abs(sum(decision.probabilities.values()) - 1) < 1e-9
-    assert set(decision.probabilities) == {"buy", "try_free", "research", "ask_friend", "ignore", "reject"}
+    assert set(decision.probabilities) == set(decision.consideration_set)
+    assert decision.action in decision.consideration_set
+    assert decision.behavioral_mode
+    assert decision.perception
     assert decision.explanation

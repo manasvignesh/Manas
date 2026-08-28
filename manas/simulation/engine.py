@@ -82,13 +82,15 @@ class SimulationEngine:
                     sequence += 1
                     if abs(agent.opinion.purchase_intent - before) >= .05:
                         opinion_changes += 1
-                    if decision.action in {"ask_friend", "buy", "reject"}:
+                    if decision.action in {"ask_friend", "recommend", "share", "buy_now", "subscribe", "reject", "criticize"}:
                         neighbors = society.neighbors(agent.id)
                         if neighbors:
                             count = min(len(neighbors), rng.randint(1, 3))
                             targets = rng.sample(neighbors, count)
-                            sentiment = .8 if decision.action == "buy" else -.65 if decision.action == "reject" else (.4 if agent.opinion.trust >= .5 else -.25)
-                            kind = "peer_purchase" if decision.action == "buy" else "peer_rejection" if decision.action == "reject" else "friend_recommendation"
+                            positive = decision.action in {"buy_now", "subscribe", "recommend", "share"}
+                            negative = decision.action in {"reject", "criticize"}
+                            sentiment = .8 if positive else -.65 if negative else (.4 if agent.opinion.trust >= .5 else -.25)
+                            kind = "peer_purchase" if decision.action in {"buy_now", "subscribe"} else "peer_rejection" if negative else "friend_recommendation"
                             followup = SimulationEvent(id=f"event_{sequence:06d}", day=min(config.days, day + rng.randint(1, 2)), event_type=kind,
                                 target_agent_ids=targets, source_agent_id=agent.id, intensity=clamp(agent.opinion.recommendation_intent + .35), sentiment=sentiment)
                             if followup.day > day:
@@ -117,20 +119,29 @@ class SimulationEngine:
     def _update_agent(self, agent: Agent, event: SimulationEvent, decision: Decision, scenario: ProductScenario, sequence: int) -> None:
         f = decision.factors
         agent.opinion.awareness = clamp(agent.opinion.awareness + .18 * event.intensity)
-        agent.opinion.interest = clamp(agent.opinion.interest * .72 + f["interest"] * .28 + event.sentiment * .05)
-        agent.opinion.trust = clamp(agent.opinion.trust * .7 + f["trust"] * .3 + event.sentiment * .08)
-        agent.opinion.perceived_value = clamp((agent.opinion.interest + agent.opinion.trust + f["goal"]) / 3)
-        agent.opinion.price_acceptance = clamp(f["financial"])
-        action_effect = {"buy": .22, "try_free": .12, "research": .04, "ask_friend": .02, "ignore": -.04, "reject": -.13}[decision.action]
-        agent.opinion.purchase_intent = clamp(agent.opinion.purchase_intent * .65 + (.3*f["interest"] + .25*f["trust"] + .25*f["financial"] + .2*f["social"]) * .35 + action_effect)
+        agent.opinion.interest = clamp(agent.opinion.interest * .68 + f["relevance"] * .32 + event.sentiment * .05)
+        agent.opinion.trust = clamp(agent.opinion.trust * .78 + (1 - f["risk"]) * .22 + event.sentiment * .08)
+        agent.opinion.perceived_value = clamp(agent.opinion.perceived_value * .45 + f["value"] * .55)
+        agent.opinion.price_acceptance = clamp(1 - f["money_conflict"])
+        action_effect = {
+            "buy_now": .22, "subscribe": .22, "try_once": .12, "try_free": .12,
+            "save_for_later": .04, "wait_for_discount": .03, "ask_friend": .03, "ask_family": .02,
+            "search_reviews": .04, "compare_alternative": .02, "watch_demo": .05, "share": .08,
+            "recommend": .12, "criticize": -.1, "ignore": -.04, "reject": -.13,
+            "uninstall": -.15, "cancel": -.16, "return_later": .01,
+        }[decision.action]
+        readiness = f["value"] * agent.opinion.trust * (.55 + .45 * agent.opinion.price_acceptance)
+        agent.opinion.purchase_intent = clamp(agent.opinion.purchase_intent * .65 + readiness * .35 + action_effect)
         agent.opinion.recommendation_intent = clamp((agent.opinion.purchase_intent + agent.opinion.trust) / 2 - .12)
         agent.state.product_awareness = agent.opinion.awareness
         agent.state.product_trust = agent.opinion.trust
         agent.state.current_interest = agent.opinion.interest
-        emotional = .6 if decision.action in {"buy", "try_free"} else -.5 if decision.action == "reject" else event.sentiment * .5
+        emotional = .6 if decision.action in {"buy_now", "subscribe", "try_once", "try_free"} else -.5 if decision.action in {"reject", "cancel", "uninstall"} else event.sentiment * .5
         agent.remember(Memory(id=f"memory_{sequence:07d}", day=event.day, event_type=event.event_type,
             content=f"{event.event_type.replace('_', ' ')} led to {decision.action.replace('_', ' ')} for {scenario.name}.",
-            importance=clamp(.35 + event.intensity * .45), emotional_weight=emotional, source_agent_id=event.source_agent_id))
+            importance=clamp(.35 + event.intensity * .45), emotional_weight=emotional, source_agent_id=event.source_agent_id,
+            category="price" if "price" in event.event_type or decision.action in {"wait_for_discount", "save_for_later"} else "privacy" if "privacy" in event.metadata.get("topic", "") else "decision",
+            topics=[scenario.category, decision.action]))
 
     def _apply_social_influence(self, speaker: Agent, target_ids: list[str], by_id: dict[str, Agent], society: SocietyGraph, event: SimulationEvent, sequence: int) -> None:
         for offset, target_id in enumerate(target_ids):

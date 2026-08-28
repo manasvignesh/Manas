@@ -5,7 +5,11 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
-Action = Literal["buy", "try_free", "research", "ask_friend", "ignore", "reject"]
+Action = Literal[
+    "buy_now", "subscribe", "try_once", "try_free", "save_for_later", "wait_for_discount",
+    "ask_friend", "ask_family", "search_reviews", "compare_alternative", "watch_demo", "share",
+    "recommend", "criticize", "ignore", "reject", "uninstall", "cancel", "return_later",
+]
 
 
 class ProductScenario(BaseModel):
@@ -46,6 +50,10 @@ class Decision(BaseModel):
     probabilities: dict[str, float]
     factors: dict[str, float]
     explanation: list[str]
+    perception: dict[str, Any] = Field(default_factory=dict)
+    motivations: list[dict[str, Any]] = Field(default_factory=list)
+    consideration_set: list[str] = Field(default_factory=list)
+    behavioral_mode: str = "ordinary"
 
 
 class SimulationConfig(BaseModel):

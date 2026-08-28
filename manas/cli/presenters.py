@@ -67,7 +67,7 @@ class ProgressPresenter:
 
 def _notable_decisions(result: SimulationResult, limit: int = 3) -> list[tuple[Agent, Decision]]:
     agents = {agent.id: agent for agent in result.agents}
-    eligible = [d for d in result.decisions if d.action in {"buy", "reject", "ask_friend"}]
+    eligible = [d for d in result.decisions if d.action in {"buy_now", "subscribe", "reject", "ask_friend", "wait_for_discount", "search_reviews"}]
     eligible.sort(key=lambda d: d.probabilities.get(d.action, 0), reverse=True)
     seen: set[str] = set()
     chosen = []
@@ -86,14 +86,19 @@ def show_activity(console: Console, result: SimulationResult) -> None:
         return
     console.print("\n[heading]Notable reactions[/heading]\n")
     descriptions = {
-        "buy": "Interest overcame the remaining concerns.",
+        "buy_now": "Interest overcame the remaining concerns.",
+        "subscribe": "The expected benefit felt worth an ongoing commitment.",
         "reject": "The idea did not clear this person's trust and value threshold.",
         "ask_friend": "Uncertainty led to a peer conversation.",
+        "wait_for_discount": "The idea mattered, but the current price did not work.",
+        "search_reviews": "Interest and uncertainty led to a search for evidence.",
     }
     for agent, decision in notable:
         console.print(f"[accent]{agent.name}[/accent] / {agent.location}")
         console.print(descriptions[decision.action])
-        console.print(f"Why: {decision.explanation[0]}; {decision.explanation[-1]}", style="muted")
+        console.print("What mattered:")
+        for reason in decision.explanation[1:]:
+            console.print(f"- {reason}")
         console.print()
 
 

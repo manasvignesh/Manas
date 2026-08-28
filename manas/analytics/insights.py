@@ -30,7 +30,7 @@ def analyze(run_id: str, seed: int, days: int, agents: list[Agent], decisions: l
     total = len(agents)
     return SimulationSummary(
         run_id=run_id, seed=seed, population_size=total, days=days,
-        interactions=sum(1 for d in decisions if d.action == "ask_friend"), opinion_changes=opinion_changes,
+        interactions=sum(1 for d in decisions if d.action in {"ask_friend", "ask_family", "share", "recommend", "criticize"}), opinion_changes=opinion_changes,
         actions=dict(actions), sentiment={key: sentiments[key] / total for key in ("positive", "neutral", "negative")},
         average_purchase_intent=sum(a.opinion.purchase_intent for a in agents) / total, insights=insights,
     )
