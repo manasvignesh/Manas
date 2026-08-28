@@ -8,6 +8,7 @@ from rich.console import Console
 from rich.prompt import Confirm, FloatPrompt, IntPrompt, Prompt
 
 from manas.simulation.models import ProductScenario, SimulationConfig
+from manas.scenarios import parse_scenario
 
 
 PRICING_MODELS = {1: "free", 2: "one-time", 3: "monthly", 4: "annual", 5: "custom"}
@@ -47,15 +48,7 @@ def ask_new_simulation(console: Console, default_population: int = 100, default_
     choose(console, "Region?", ["India"], default=1)
     days = IntPrompt.ask("\nSimulation length in days?", default=30, console=console)
     seed = IntPrompt.ask("\nRandom seed?", default=default_seed, console=console)
-    scenario = ProductScenario(
-        name=idea,
-        description=idea,
-        target_audience="Indian consumers",
-        price=max(0, price),
-        pricing_model=pricing_model,
-        category=idea,
-        concerns=["price", "privacy"],
-    )
+    scenario = parse_scenario(idea, price=max(0, price), pricing_model=pricing_model, target_audience="Indian consumers")
     config = SimulationConfig(population_size=max(1, population), days=max(1, days), seed=seed)
     return SimulationSetup(scenario, config)
 
@@ -70,4 +63,3 @@ def ask_replay_change(console: Console) -> tuple[str, str] | None:
         return None
     keys = {1: "price", 2: "description", 3: "feature", 4: "target", 5: "days"}
     return keys[choice], Prompt.ask("\nNew value\n\n>", console=console)
-

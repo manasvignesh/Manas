@@ -15,6 +15,7 @@ from manas.cli.presenters import ProgressPresenter, show_agents, show_comparison
 from manas.cli.prompts import SimulationSetup, ask_new_simulation, ask_replay_change, choose, confirm_start
 from manas.simulation.engine import SimulationEngine, SimulationResult
 from manas.simulation.models import ProductScenario, SimulationConfig
+from manas.scenarios import parse_scenario
 from manas.storage import Database, SimulationRepository
 from manas.utils.config import (
     AppConfig,
@@ -166,9 +167,9 @@ def simulate(
     population: int = typer.Option(100, min=1, max=10_000),
     days: int = typer.Option(30, min=1, max=365),
     seed: int = typer.Option(42),
-    price: float = typer.Option(0, min=0),
-    pricing_model: str = typer.Option("one-time"),
-    target: str = typer.Option("general consumers"),
+    price: float | None = typer.Option(None, min=0),
+    pricing_model: str | None = typer.Option(None),
+    target: str | None = typer.Option(None),
     description: str = typer.Option(""),
     debug: bool = typer.Option(False),
 ) -> None:
@@ -178,8 +179,11 @@ def simulate(
         if result:
             interactive_post_run(result)
         return
-    scenario = ProductScenario(name=idea, description=description or idea, target_audience=target, price=price,
-                               pricing_model=pricing_model, category=idea, concerns=["price", "privacy"])
+    try:
+        scenario = parse_scenario(idea, description=description or None, target_audience=target, price=price, pricing_model=pricing_model)
+    except ValueError as error:
+        console.print(f"[error]{error}[/error]")
+        raise typer.Exit(2) from error
     execute_simulation(SimulationSetup(scenario, SimulationConfig(population_size=population, days=days, seed=seed, debug=debug)))
 
 

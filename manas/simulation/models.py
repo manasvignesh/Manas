@@ -18,6 +18,14 @@ class ProductScenario(BaseModel):
     features: list[str] = Field(default_factory=list)
     concerns: list[str] = Field(default_factory=list)
     category: str = "general"
+    secondary_categories: list[str] = Field(default_factory=list)
+    technologies: list[str] = Field(default_factory=list)
+    benefits: list[str] = Field(default_factory=list)
+    competitors: list[str] = Field(default_factory=list)
+    behavior_change_required: float = Field(default=0.3, ge=0, le=1)
+    privacy_exposure: float = Field(default=0.1, ge=0, le=1)
+    novelty: float = Field(default=0.4, ge=0, le=1)
+    raw_input: str = ""
 
 
 class SimulationEvent(BaseModel):
