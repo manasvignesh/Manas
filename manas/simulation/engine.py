@@ -133,7 +133,7 @@ class SimulationEngine:
         run_id = f"run_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:6]}"
         cascades = self._detect_cascades(information, society)
         community_insights = self._community_insights(agents, information, society)
-        summary = analyze(run_id, config.seed, config.days, agents, decisions, society.graph, opinion_changes)
+        summary = analyze(run_id, config.seed, config.days, agents, decisions, society.graph, opinion_changes, scenario, social_interactions)
         if cascades:
             summary.insights.append(f"A {cascades[0].topic} concern or claim spread to {cascades[0].reached} people across {len(cascades[0].communities)} social circles.")
         return SimulationResult(run_id, datetime.now(timezone.utc).isoformat(), scenario, config, agents, society, events, decisions, summary,

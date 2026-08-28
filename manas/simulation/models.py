@@ -75,6 +75,8 @@ class SimulationSummary(BaseModel):
     sentiment: dict[str, float]
     average_purchase_intent: float
     insights: list[str]
+    findings: dict[str, str] = Field(default_factory=dict)
+    real_world_tests: list[str] = Field(default_factory=list)
     disclaimer: str = "Results represent a synthetic population under selected assumptions, not real-world survey statistics."
 
 

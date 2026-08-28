@@ -114,9 +114,14 @@ def show_summary(console: Console, result: SimulationResult) -> None:
     console.print(f"{summary.interactions} peer conversations")
     console.print(f"{summary.opinion_changes} significant opinion changes")
     console.print(f"{summary.average_purchase_intent:.0%} average purchase intent")
-    console.print("\n[heading]Emerging signals[/heading]\n")
-    for insight in summary.insights:
-        console.print(f"- {insight}")
+    console.print("\n[heading]WHAT MANAS FOUND[/heading]\n")
+    labels = {
+        "who_wants_this": "Who wants this", "who_does_not": "Who does not", "strongest_pull": "Strongest pull",
+        "biggest_resistance": "Biggest resistance", "unexpected": "Unexpected perspective", "social_effect": "Social effect",
+    }
+    for key, label in labels.items():
+        if key in summary.findings:
+            console.print(f"[heading]{label}[/heading]\n{summary.findings[key]}\n")
     show_activity(console, result)
     if result.cascades:
         cascade = result.cascades[0]
@@ -126,6 +131,9 @@ def show_summary(console: Console, result: SimulationResult) -> None:
         community = result.communities[0]
         console.print("\n[heading]Most active circle[/heading]")
         console.print(f"{community.name}: {community.size} people, {community.sentiment} response; most discussed: {community.most_discussed}.")
+    console.print("\n[heading]What you should test with real people[/heading]")
+    for recommendation in summary.real_world_tests:
+        console.print(f"- {recommendation}")
     console.print(DISCLAIMER, style="muted")
 
 
@@ -150,23 +158,33 @@ def show_agents(console: Console, result: SimulationResult, query: str = "", lim
 def show_agent(console: Console, result: SimulationResult, agent: Agent) -> None:
     console.print(f"\n[heading]{agent.name}[/heading]")
     console.print(f"{agent.age} / {agent.location} / {agent.occupation}", style="muted")
-    console.print("\n[heading]Current stance[/heading]")
-    console.print(f"{agent.opinion.sentiment.title()}, purchase intent {agent.opinion.purchase_intent:.0%}")
-    console.print("\n[heading]Goals[/heading]")
-    for goal in agent.goals:
-        console.print(f"- {goal}")
-    console.print("\n[heading]Relevant memories[/heading]")
-    memories = agent.relevant_memories(result.config.days, 4)
-    if memories:
-        for memory in memories:
-            console.print(f"- Day {memory.day}: {memory.content}")
-    else:
-        console.print("- No salient memories recorded", style="muted")
+    if agent.life_contexts:
+        console.print("\n[heading]Right now[/heading]")
+        console.print(agent.life_contexts[0].description)
+    console.print("\n[heading]They care about[/heading]")
+    for item in list(dict.fromkeys([*agent.interests, *agent.goals]))[:5]: console.print(f"- {item}")
+    tendencies = []
+    if agent.personality.frugality > .65: tendencies.append("careful with money and likely to compare alternatives")
+    if agent.personality.skepticism > .65: tendencies.append("skeptical until there is credible evidence")
+    if agent.personality.social_conformity > .65: tendencies.append("strongly influenced by trusted people")
+    if agent.personality.impulsiveness > .7: tendencies.append("occasionally acts quickly when something connects to a hobby")
+    console.print("\n[heading]Tendencies[/heading]")
+    for item in tendencies or ["balances curiosity with familiar routines"]: console.print(f"- {item}")
+    if agent.contradictions:
+        console.print("\n[heading]Contradiction[/heading]")
+        console.print(agent.contradictions[0])
     decisions = [d for d in result.decisions if d.agent_id == agent.id]
+    console.print("\n[heading]Their story[/heading]")
     if decisions:
-        console.print("\n[heading]Why?[/heading]")
-        for factor in decisions[-1].explanation:
-            console.print(factor)
+        for decision in decisions[-5:]:
+            console.print(f"Day {decision.day}: {decision.explanation[0]} They chose to {decision.action.replace('_', ' ')}.")
+    else:
+        console.print("The idea did not reach them during this run.", style="muted")
+    if decisions:
+        console.print("\n[heading]Current decision[/heading]")
+        console.print(f"Would {decisions[-1].action.replace('_', ' ')}.")
+        console.print("\n[heading]What mattered[/heading]")
+        for reason in decisions[-1].explanation[1:]: console.print(f"- {reason}")
 
 
 def show_comparison(console: Console, left: SimulationResult, right: SimulationResult) -> None:
