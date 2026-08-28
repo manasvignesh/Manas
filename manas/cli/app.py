@@ -12,7 +12,7 @@ from manas import __version__
 from manas.analytics.export import export_result
 from manas.cli.formatting import console
 from manas.cli.presenters import ProgressPresenter, show_agents, show_comparison, show_debug, show_header, show_ready, show_summary
-from manas.cli.prompts import SimulationSetup, ask_new_simulation, ask_replay_change, choose, confirm_start
+from manas.cli.prompts import SimulationSetup, ask_idea_first, ask_new_simulation, ask_replay_change, choose, confirm_start, parse_replay_change
 from manas.simulation.engine import SimulationEngine, SimulationResult
 from manas.simulation.models import ProductScenario, SimulationConfig
 from manas.scenarios import parse_scenario
@@ -40,7 +40,8 @@ def repository() -> SimulationRepository:
 
 def load_run(run_id: str, debug: bool = False) -> SimulationResult:
     try:
-        return repository().load(run_id)
+        repo = repository()
+        return repo.load(repo.resolve_run_id(run_id))
     except Exception as error:
         if debug:
             raise
@@ -64,66 +65,44 @@ def execute_simulation(setup: SimulationSetup) -> SimulationResult:
     return result
 
 
-def interactive_new() -> SimulationResult | None:
+def interactive_new(initial_idea: str | None = None) -> SimulationResult | None:
     config = load_config()
-    setup = ask_new_simulation(console, config.default_population_size, config.default_seed)
+    if initial_idea is None:
+        initial_idea = Prompt.ask("\nWhat do you want 100 minds to react to?\n\n>", console=console)
+    setup = ask_idea_first(console, initial_idea, config.default_population_size)
     if setup is None:
         return None
-    show_ready(console, setup.scenario, setup.config)
-    return execute_simulation(setup) if confirm_start(console) else None
+    console.print(f"\nI'll introduce this to {setup.config.population_size} synthetic people across India\nand let the idea spread for {setup.config.days} simulated days.")
+    return execute_simulation(setup) if Confirm.ask("\nStart?", default=True, console=console) else None
 
 
 def interactive_post_run(result: SimulationResult) -> None:
-    while True:
-        choice = choose(console, "What next?", ["Explore agents", "View insights", "Replay with changes", "Compare scenario", "Export", "Return home"])
-        if choice == 1:
-            query = Prompt.ask("\nSearch agents", default="", console=console)
-            show_agents(console, result, query, 10)
-        elif choice == 2:
-            show_summary(console, result)
-        elif choice == 3:
-            replay_interactive(result)
-        elif choice == 4:
-            other = Prompt.ask("Run ID to compare", console=console)
-            show_comparison(console, result, load_run(other))
-        elif choice == 5:
-            paths = export_result(result, Path("exports"), {"json", "csv", "markdown"})
-            for path in paths:
-                console.print(f"[success]OK[/success] {path.resolve()}")
+    change = Prompt.ask("\nWhat would you change? (press Enter to finish)", default="", console=console)
+    if change:
+        parsed = parse_replay_change(change)
+        if parsed:
+            key, value = parsed
+            replayed = run_replay(result, **{key: float(value) if key == "price" else value})
+            if Confirm.ask("\nCompare this with the original?", default=True, console=console): show_comparison(console, result, replayed)
         else:
-            return
+            console.print("I couldn't understand that change. Try 'price to 199', 'add feature student discount', or use manas replay latest.", style="warning")
+    console.print("\nTry /runs, manas agents latest, or manas export latest when you want to explore further.", style="muted")
 
 
 def interactive_home() -> None:
     show_header(console)
     while True:
-        choice = choose(console, "What would you like to do?", ["New simulation", "Replay simulation", "Compare scenarios", "Explore agents", "Export results", "Models", "Settings", "Help", "Exit"])
-        if choice == 1:
-            result = interactive_new()
-            if result:
-                interactive_post_run(result)
-        elif choice == 2:
-            replay_interactive(load_run(Prompt.ask("Run ID", console=console)))
-        elif choice == 3:
-            first = load_run(Prompt.ask("World A run ID", console=console))
-            second = load_run(Prompt.ask("World B run ID", console=console))
-            show_comparison(console, first, second)
-        elif choice == 4:
-            result = load_run(Prompt.ask("Run ID", console=console))
-            show_agents(console, result, Prompt.ask("Search agents", default="", console=console), 10)
-        elif choice == 5:
-            result = load_run(Prompt.ask("Run ID", console=console))
-            for path in export_result(result, Path("exports"), {"json", "csv", "markdown"}):
-                console.print(f"[success]OK[/success] {path.resolve()}")
-        elif choice == 6:
+        idea = Prompt.ask("\nWhat do you want to explore?\n\n>", console=console).strip()
+        if idea in {"/exit", "/quit"}: return
+        if idea == "/runs": show_runs()
+        elif idea == "/models":
             from manas.models.manager import interactive_models
             interactive_models(console)
-        elif choice == 7:
-            show_settings()
-        elif choice == 8:
-            console.print("\nUse [accent]manas --help[/accent] for every scriptable command. Press Ctrl+C at any prompt to leave.")
-        else:
-            return
+        elif idea == "/settings": show_settings()
+        elif idea == "/help": console.print("/runs  /models  /settings  /help  /exit\nOr type any idea to start a society.")
+        elif idea:
+            result = interactive_new(idea)
+            if result: interactive_post_run(result)
 
 
 @app.callback(invoke_without_command=True)
@@ -188,7 +167,8 @@ def simulate(
 
 
 def replay_interactive(original: SimulationResult) -> SimulationResult | None:
-    change = ask_replay_change(console)
+    natural = Prompt.ask("What would you change?", console=console)
+    change = parse_replay_change(natural) or ask_replay_change(console)
     if change is None:
         return None
     key, value = change
@@ -289,3 +269,24 @@ def info() -> None:
     console.print(f"Stored runs: {len(runs)}")
     console.print(f"Data: {default_database_path()}")
     console.print("Reasoning: optional and disabled by default")
+
+
+def show_runs() -> None:
+    records = repository().list_run_records()
+    if not records:
+        console.print("No saved simulations yet.", style="muted"); return
+    console.print("\n[heading]Runs[/heading]\n")
+    for index, record in enumerate(records, 1):
+        pin = " (pinned)" if record.pinned else ""
+        replay = " replay" if index > 1 and record.scenario_name == records[index - 2].scenario_name else ""
+        console.print(f"{index:>2}  {record.scenario_name[:38]}{replay}{pin}")
+        console.print(f"    {record.population_size} people / {record.days} days / {record.run_id}", style="muted")
+
+
+@app.command()
+def runs(pin: str | None = typer.Option(None, help="Pin a run by number, alias, or ID."), unpin: str | None = typer.Option(None)) -> None:
+    """List saved simulations with readable aliases."""
+    repo = repository()
+    if pin: console.print(f"Pinned {repo.pin(pin)}", style="success")
+    if unpin: console.print(f"Unpinned {repo.pin(unpin, False)}", style="success")
+    show_runs()

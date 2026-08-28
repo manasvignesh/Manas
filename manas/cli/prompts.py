@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
+import secrets
 
 from rich.console import Console
 from rich.prompt import Confirm, FloatPrompt, IntPrompt, Prompt
@@ -51,6 +53,41 @@ def ask_new_simulation(console: Console, default_population: int = 100, default_
     scenario = parse_scenario(idea, price=max(0, price), pricing_model=pricing_model, target_audience="Indian consumers")
     config = SimulationConfig(population_size=max(1, population), days=max(1, days), seed=seed)
     return SimulationSetup(scenario, config)
+
+
+def ask_idea_first(console: Console, idea: str, default_population: int = 100) -> SimulationSetup | None:
+    try:
+        scenario = parse_scenario(idea)
+    except ValueError as error:
+        console.print(f"[warning]{error}[/warning]")
+        return None
+    if scenario.price > 0:
+        if not Confirm.ask(f"\nI found {scenario.price:g} {scenario.pricing_model} pricing. Use that?", default=True, console=console):
+            scenario.price = FloatPrompt.ask("Price", default=scenario.price, console=console)
+    elif "free" not in idea.casefold():
+        kind = choose(console, "I couldn't find a price. Is this:", ["Free", "Paid", "Price is not relevant"], default=3)
+        if kind == 1:
+            scenario.price, scenario.pricing_model = 0, "free"
+        elif kind == 2:
+            scenario.price = FloatPrompt.ask("Price", console=console)
+            scenario.pricing_model = PRICING_MODELS[choose(console, "Pricing model?", ["Free", "One-time", "Monthly", "Annual", "Custom"], default=2)]
+    return SimulationSetup(scenario, SimulationConfig(population_size=default_population, days=14, seed=secrets.randbelow(2_147_483_647)))
+
+
+def parse_replay_change(text: str) -> tuple[str, str] | None:
+    value = text.strip()
+    patterns = [
+        ("price", r"(?:set\s+)?price\s+(?:to|at|=)?\s*₹?\s*([\d,.]+)"),
+        ("days", r"(?:run\s+for|duration\s+(?:to|=)?|days\s+(?:to|=)?)\s*(\d+)"),
+        ("feature", r"(?:add\s+)?feature\s+(?:to|=)?\s*(.+)"),
+        ("target", r"(?:target|audience)\s+(?:to|=)?\s*(.+)"),
+        ("description", r"description\s+(?:to|=)?\s*(.+)"),
+    ]
+    for key, pattern in patterns:
+        match = re.fullmatch(pattern, value, re.I)
+        if match:
+            return key, match.group(1).replace(",", "").strip()
+    return None
 
 
 def confirm_start(console: Console) -> bool:

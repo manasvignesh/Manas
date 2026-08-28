@@ -30,7 +30,6 @@ def show_ready(console: Console, scenario: ProductScenario, config: SimulationCo
     table.add_row("Population", str(config.population_size))
     table.add_row("Region", "India")
     table.add_row("Duration", f"{config.days} days")
-    table.add_row("Seed", str(config.seed))
     console.print(table)
 
 
@@ -202,4 +201,17 @@ def show_comparison(console: Console, left: SimulationResult, right: SimulationR
     direction = "increased" if delta >= 0 else "decreased"
     console.print("\n[heading]Biggest change[/heading]")
     console.print(f"Purchase intent {direction} by {abs(delta):.0%} between these simulated worlds.")
+    pairs = [(a, b) for a in left.agents for b in right.agents if a.id == b.id]
+    sensitive = [b.opinion.purchase_intent - a.opinion.purchase_intent for a, b in pairs if a.price_sensitivity >= .65]
+    insensitive = [b.opinion.purchase_intent - a.opinion.purchase_intent for a, b in pairs if a.price_sensitivity <= .35]
+    if sensitive:
+        console.print(f"Price-sensitive people changed by {sum(sensitive)/len(sensitive):.0%} on average.")
+    if insensitive:
+        console.print(f"Price-insensitive people changed by {sum(insensitive)/len(insensitive):.0%} on average.")
+    low_relevance = []
+    for agent_a, agent_b in pairs:
+        relevant = [d.factors.get("relevance", 0) for d in left.decisions if d.agent_id == agent_a.id]
+        if relevant and sum(relevant)/len(relevant) < .25: low_relevance.append(agent_b.opinion.purchase_intent - agent_a.opinion.purchase_intent)
+    if low_relevance:
+        console.print(f"People with little category relevance moved only {sum(low_relevance)/len(low_relevance):.0%} on average.")
     console.print(f"\n{DISCLAIMER}", style="muted")

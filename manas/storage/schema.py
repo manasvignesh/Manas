@@ -37,4 +37,8 @@ CREATE TABLE IF NOT EXISTS community_insights (
     simulation_id TEXT NOT NULL, name TEXT NOT NULL, data_json TEXT NOT NULL,
     PRIMARY KEY (simulation_id, name), FOREIGN KEY (simulation_id) REFERENCES simulations(id) ON DELETE CASCADE
 );
+CREATE TABLE IF NOT EXISTS pinned_runs (
+    simulation_id TEXT PRIMARY KEY, pinned_at TEXT NOT NULL,
+    FOREIGN KEY (simulation_id) REFERENCES simulations(id) ON DELETE CASCADE
+);
 """

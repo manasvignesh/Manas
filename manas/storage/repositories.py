@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from manas.agents.models import Agent
 from manas.simulation.engine import SimulationResult
@@ -12,6 +14,18 @@ from manas.storage.database import Database
 
 def dump(model) -> str:
     return model.model_dump_json()
+
+
+@dataclass(frozen=True)
+class RunRecord:
+    run_id: str
+    created_at: str
+    scenario_name: str
+    price: float
+    pricing_model: str
+    population_size: int
+    days: int
+    pinned: bool = False
 
 
 class SimulationRepository:
@@ -38,6 +52,39 @@ class SimulationRepository:
         with self.database.connect() as connection:
             rows = connection.execute("SELECT summary_json FROM simulations ORDER BY created_at DESC").fetchall()
         return [SimulationSummary.model_validate_json(row[0]) for row in rows]
+
+    def list_run_records(self) -> list[RunRecord]:
+        with self.database.connect() as connection:
+            rows = connection.execute("SELECT s.*, p.simulation_id AS pinned FROM simulations s LEFT JOIN pinned_runs p ON p.simulation_id = s.id ORDER BY s.created_at DESC").fetchall()
+        records = []
+        for row in rows:
+            scenario = ProductScenario.model_validate_json(row["scenario_json"])
+            records.append(RunRecord(row["id"], row["created_at"], scenario.name, scenario.price, scenario.pricing_model,
+                                     row["population_size"], row["days"], bool(row["pinned"])))
+        return records
+
+    def resolve_run_id(self, reference: str) -> str:
+        records = self.list_run_records()
+        if not records:
+            raise KeyError("No simulations have been saved yet.")
+        normalized = reference.strip().casefold()
+        if normalized in {"latest", "last"}: return records[0].run_id
+        if normalized == "previous" and len(records) > 1: return records[1].run_id
+        if normalized == "pinned":
+            pinned = next((item for item in records if item.pinned), None)
+            if pinned: return pinned.run_id
+        if normalized.isdigit() and 1 <= int(normalized) <= len(records): return records[int(normalized) - 1].run_id
+        if any(item.run_id == reference for item in records): return reference
+        raise KeyError(f"Unknown run reference: {reference}")
+
+    def pin(self, reference: str, pinned: bool = True) -> str:
+        run_id = self.resolve_run_id(reference)
+        with self.database.connect() as connection:
+            if pinned:
+                connection.execute("INSERT OR REPLACE INTO pinned_runs VALUES (?, ?)", (run_id, datetime.now(timezone.utc).isoformat()))
+            else:
+                connection.execute("DELETE FROM pinned_runs WHERE simulation_id = ?", (run_id,))
+        return run_id
 
     def load(self, run_id: str) -> SimulationResult:
         with self.database.connect() as connection:
