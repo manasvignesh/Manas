@@ -6,6 +6,7 @@ from manas.agents.models import Agent
 from manas.simulation.engine import SimulationResult
 from manas.simulation.models import Decision, ProductScenario, SimulationConfig, SimulationEvent, SimulationSummary
 from manas.society.graph import SocietyGraph
+from manas.society.models import InformationItem, OpinionCascade, SocialInteraction
 from manas.storage.database import Database
 
 
@@ -28,6 +29,9 @@ class SimulationRepository:
                 [(result.run_id, a, b, json.dumps(data, sort_keys=True)) for a, b, data in result.graph.graph.edges(data=True)])
             connection.executemany("INSERT INTO events VALUES (?, ?, ?, ?)", [(result.run_id, e.id, e.day, dump(e)) for e in result.events])
             connection.executemany("INSERT INTO actions VALUES (?, ?, ?, ?, ?)", [(result.run_id, i, d.agent_id, d.day, dump(d)) for i, d in enumerate(result.decisions)])
+            connection.executemany("INSERT INTO information_items VALUES (?, ?, ?)", [(result.run_id, item.id, dump(item)) for item in (result.information or [])])
+            connection.executemany("INSERT INTO social_interactions VALUES (?, ?, ?)", [(result.run_id, item.id, dump(item)) for item in (result.social_interactions or [])])
+            connection.executemany("INSERT INTO cascades VALUES (?, ?, ?)", [(result.run_id, item.information_id, dump(item)) for item in (result.cascades or [])])
 
     def list_runs(self) -> list[SimulationSummary]:
         with self.database.connect() as connection:
@@ -43,6 +47,9 @@ class SimulationRepository:
             events = [SimulationEvent.model_validate_json(r[0]) for r in connection.execute("SELECT data_json FROM events WHERE simulation_id = ? ORDER BY day, event_id", (run_id,))]
             decisions = [Decision.model_validate_json(r[0]) for r in connection.execute("SELECT data_json FROM actions WHERE simulation_id = ? ORDER BY sequence", (run_id,))]
             edge_rows = connection.execute("SELECT source_id, target_id, data_json FROM relationships WHERE simulation_id = ?", (run_id,)).fetchall()
+            information = [InformationItem.model_validate_json(r[0]) for r in connection.execute("SELECT data_json FROM information_items WHERE simulation_id = ?", (run_id,))]
+            interactions = [SocialInteraction.model_validate_json(r[0]) for r in connection.execute("SELECT data_json FROM social_interactions WHERE simulation_id = ?", (run_id,))]
+            cascades = [OpinionCascade.model_validate_json(r[0]) for r in connection.execute("SELECT data_json FROM cascades WHERE simulation_id = ?", (run_id,))]
         config = SimulationConfig.model_validate_json(row["config_json"])
         graph = SocietyGraph(config.seed)
         for agent in agents:
@@ -50,4 +57,5 @@ class SimulationRepository:
         for edge in edge_rows:
             graph.graph.add_edge(edge[0], edge[1], **json.loads(edge[2]))
         return SimulationResult(run_id, row["created_at"], ProductScenario.model_validate_json(row["scenario_json"]), config,
-                                agents, graph, events, decisions, SimulationSummary.model_validate_json(row["summary_json"]))
+                                agents, graph, events, decisions, SimulationSummary.model_validate_json(row["summary_json"]),
+                                information, interactions, cascades)

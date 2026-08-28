@@ -10,8 +10,11 @@ def build_consideration_set(agent: Agent, scenario: ProductScenario, event: Simu
         reasons.update(search_reviews="Uncertainty can be reduced with outside evidence.", compare_alternative="Existing options provide a useful benchmark.")
     if event.source_agent_id:
         actions.append("ask_friend"); reasons["ask_friend"] = "The social source can provide more context."
-    elif agent.household in {"joint family", "nuclear family", "couple"} and scenario.price > agent.disposable_income * .08:
-        actions.append("ask_family"); reasons["ask_family"] = "The purchase may affect a shared budget."
+    else:
+        if agent.personality.social_conformity > .4 or "recommendations from friends matter" in agent.beliefs:
+            actions.append("ask_friend"); reasons["ask_friend"] = "A trusted friend may make the trade-off clearer."
+        if agent.household in {"joint family", "nuclear family", "couple"} and scenario.price > agent.disposable_income * .08:
+            actions.append("ask_family"); reasons["ask_family"] = "The purchase may affect a shared budget."
     if scenario.price <= 0:
         actions += ["try_free", "try_once"]
         reasons.update(try_free="There is little financial downside to trying it.", try_once="A single attempt can reveal whether it helps.")

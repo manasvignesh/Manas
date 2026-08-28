@@ -16,6 +16,8 @@ from manas.simulation.models import DayReport, Decision, ProductScenario, Simula
 from manas.simulation.scheduler import EventScheduler
 from manas.society.graph import SocietyGraph
 from manas.society.influence import influence_shift
+from manas.society.information import information_from_decision, interpreted_claim
+from manas.society.models import InformationItem, OpinionCascade, SocialInteraction
 from manas.utils.random import clamp, seeded
 
 
@@ -30,6 +32,9 @@ class SimulationResult:
     events: list[SimulationEvent]
     decisions: list[Decision]
     summary: SimulationSummary
+    information: list[InformationItem] | None = None
+    social_interactions: list[SocialInteraction] | None = None
+    cascades: list[OpinionCascade] | None = None
 
 
 class SimulationEngine:
@@ -49,6 +54,9 @@ class SimulationEngine:
         scheduler = EventScheduler()
         events: list[SimulationEvent] = []
         decisions: list[Decision] = []
+        information: list[InformationItem] = []
+        information_by_id: dict[str, InformationItem] = {}
+        social_interactions: list[SocialInteraction] = []
         opinion_changes = 0
         initial_count = max(1, int(len(agents) * .35))
         initial_targets = rng.sample(list(by_id), k=min(initial_count, len(agents)))
@@ -91,11 +99,19 @@ class SimulationEngine:
                             negative = decision.action in {"reject", "criticize"}
                             sentiment = .8 if positive else -.65 if negative else (.4 if agent.opinion.trust >= .5 else -.25)
                             kind = "peer_purchase" if decision.action in {"buy_now", "subscribe"} else "peer_rejection" if negative else "friend_recommendation"
+                            carried_id = event.metadata.get("information_id")
+                            if carried_id and carried_id in information_by_id:
+                                item = information_by_id[carried_id]
+                            else:
+                                item = information_from_decision(f"info_{sequence:07d}", agent, decision)
+                                information.append(item)
+                                information_by_id[item.id] = item
                             followup = SimulationEvent(id=f"event_{sequence:06d}", day=min(config.days, day + rng.randint(1, 2)), event_type=kind,
-                                target_agent_ids=targets, source_agent_id=agent.id, intensity=clamp(agent.opinion.recommendation_intent + .35), sentiment=sentiment)
+                                target_agent_ids=targets, source_agent_id=agent.id, intensity=clamp(agent.opinion.recommendation_intent + .35), sentiment=sentiment,
+                                metadata={"information_id": item.id, "topic": item.topic, "claim": item.claim, "depth": int(event.metadata.get("depth", 0)) + 1})
                             if followup.day > day:
                                 scheduler.schedule(followup)
-                            self._apply_social_influence(agent, targets, by_id, society, followup, sequence)
+                            self._apply_social_influence(agent, targets, by_id, society, followup, item, social_interactions, sequence)
                             sequence += 1
             self._daily_drift(agents, rng)
             if day_observer:
@@ -114,7 +130,8 @@ class SimulationEngine:
             await asyncio.sleep(0)
         run_id = f"run_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:6]}"
         summary = analyze(run_id, config.seed, config.days, agents, decisions, society.graph, opinion_changes)
-        return SimulationResult(run_id, datetime.now(timezone.utc).isoformat(), scenario, config, agents, society, events, decisions, summary)
+        return SimulationResult(run_id, datetime.now(timezone.utc).isoformat(), scenario, config, agents, society, events, decisions, summary,
+                                information, social_interactions, [])
 
     def _update_agent(self, agent: Agent, event: SimulationEvent, decision: Decision, scenario: ProductScenario, sequence: int) -> None:
         f = decision.factors
@@ -143,16 +160,27 @@ class SimulationEngine:
             category="price" if "price" in event.event_type or decision.action in {"wait_for_discount", "save_for_later"} else "privacy" if "privacy" in event.metadata.get("topic", "") else "decision",
             topics=[scenario.category, decision.action]))
 
-    def _apply_social_influence(self, speaker: Agent, target_ids: list[str], by_id: dict[str, Agent], society: SocietyGraph, event: SimulationEvent, sequence: int) -> None:
+    def _apply_social_influence(self, speaker: Agent, target_ids: list[str], by_id: dict[str, Agent], society: SocietyGraph,
+                                event: SimulationEvent, information: InformationItem, interactions: list[SocialInteraction], sequence: int) -> None:
         for offset, target_id in enumerate(target_ids):
             listener = by_id[target_id]
-            shift, effect = influence_shift(listener, society.edge(speaker.id, target_id), max(speaker.opinion.trust, .25), event.sentiment, event.intensity)
+            edge = society.edge(speaker.id, target_id)
+            shift, effect = influence_shift(listener, edge, max(speaker.opinion.trust, .25), event.sentiment, event.intensity)
+            claim = interpreted_claim(information, listener)
+            if claim != information.claim and claim not in information.mutations:
+                information.mutations.append(claim)
+            if target_id not in information.reached_agent_ids:
+                information.reached_agent_ids.append(target_id)
             listener.opinion.trust = clamp(listener.opinion.trust + shift)
             listener.opinion.interest = clamp(listener.opinion.interest + shift * .65)
             listener.state.peer_pressure = clamp(listener.state.peer_pressure + abs(shift))
+            reaction = "became curious" if shift > .04 else "became more doubtful" if shift < -.04 else "held their prior view"
+            interactions.append(SocialInteraction(id=f"interaction_{len(interactions) + 1:07d}", day=event.day, speaker_id=speaker.id,
+                listener_id=listener.id, information_id=information.id, relationship_type=edge["relationship_type"],
+                credibility=clamp(edge["trust"] * information.credibility), listener_reaction=reaction, result=effect, opinion_shift=shift))
             listener.remember(Memory(id=f"memory_{sequence + offset:07d}", day=event.day, event_type=event.event_type,
-                content=f"{speaker.name} shared an opinion; effect was {effect}.", importance=clamp(.45 + abs(shift)),
-                emotional_weight=shift, source_agent_id=speaker.id))
+                content=f"{speaker.name} said: {claim} The message {reaction}.", importance=clamp(.45 + abs(shift)),
+                emotional_weight=shift, source_agent_id=speaker.id, category=information.topic, topics=[information.topic, "social proof"]))
 
     def _daily_drift(self, agents: list[Agent], rng) -> None:
         for agent in agents:
