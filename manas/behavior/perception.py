@@ -11,10 +11,27 @@ def perceive(agent: Agent, scenario: ProductScenario, event: SimulationEvent) ->
     context_match = scenario.category in themes or bool(themes & set(scenario.benefits))
     experience = agent.category_experiences.get(scenario.category)
     relevance = clamp(.12 + (.38 if category_match else 0) + (.32 if context_match else 0) + agent.state.motivation * .14)
-    affordability = 1 if scenario.price <= 0 else clamp(agent.disposable_income / max(scenario.price * 4, 1) / 3)
+    if scenario.price <= 0:
+        affordability = 1
+    else:
+        recurring_cost = 4 if scenario.pricing_model in {"monthly", "subscription"} else 1
+        burden = scenario.price * recurring_cost / max(agent.disposable_income, 1)
+        sensitivity = .35 + agent.price_sensitivity * 1.3
+        affordability = 1 - (burden * sensitivity) / (1 + burden * sensitivity)
     value = clamp(relevance * (.45 + affordability * .35) + (experience.satisfaction * .2 if experience else .08))
     novelty = clamp(scenario.novelty * .65 + agent.personality.novelty_seeking * .35)
-    risk = clamp(scenario.privacy_exposure * agent.privacy_sensitivity * .55 + ((1 - experience.satisfaction) * .35 if experience else .15) + agent.personality.skepticism * .2)
+    privacy_event = (
+        event.event_type == "privacy_concern"
+        or event.metadata.get("topic") == "privacy"
+        or "privacy" in str(event.metadata.get("claim", "")).casefold()
+    )
+    event_risk = event.intensity * agent.privacy_sensitivity * .4 if privacy_event else 0
+    risk = clamp(
+        scenario.privacy_exposure * agent.privacy_sensitivity * .55
+        + ((1 - experience.satisfaction) * .35 if experience else .15)
+        + agent.personality.skepticism * .2
+        + event_risk
+    )
     effort = clamp(scenario.behavior_change_required * (.7 + agent.habit_strength * .3) + agent.state.fatigue * .15)
     status = clamp(agent.status_seeking * (.55 if scenario.novelty > .55 else .25))
     concerns = list(scenario.concerns)

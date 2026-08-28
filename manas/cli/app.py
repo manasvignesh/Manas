@@ -10,6 +10,7 @@ from rich.table import Table
 
 from manas import __version__
 from manas.analytics.export import export_result
+from manas.calibration import run_benchmarks
 from manas.cli.formatting import console
 from manas.cli.presenters import ProgressPresenter, show_agents, show_comparison, show_debug, show_header, show_ready, show_summary
 from manas.cli.prompts import SimulationSetup, ask_idea_first, ask_new_simulation, ask_replay_change, choose, confirm_start, parse_replay_change
@@ -262,6 +263,20 @@ def models() -> None:
     """Discover and manage optional local reasoning models."""
     from manas.models.manager import interactive_models
     interactive_models(console)
+
+
+@app.command()
+def benchmark() -> None:
+    """Run behavioral sanity checks (not empirical calibration)."""
+    console.print("\n[heading]MANAS behavior benchmarks[/heading]\n")
+    results = run_benchmarks()
+    for result in results:
+        status = "[success]PASS[/success]" if result.passed else "[error]FAIL[/error]"
+        console.print(f"{status} {result.name}")
+        console.print(f"     {result.evidence}", style="muted")
+    console.print("\nThese are model invariants, not evidence that MANAS predicts real populations.", style="muted")
+    if not all(result.passed for result in results):
+        raise typer.Exit(1)
 
 
 @app.command()

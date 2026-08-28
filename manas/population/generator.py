@@ -64,7 +64,7 @@ class PopulationGenerator:
                 remaining_days=self.rng.randint(14, 120)))
         experience_categories = set(self.rng.sample(["fitness", "education", "finance", "productivity", "entertainment", "technology"], k=3))
         category_experiences = {}
-        for category in experience_categories:
+        for category in sorted(experience_categories):
             familiarity = self._score(.65 if category in interests else .35, .18)
             used, satisfaction = max(0, int(self.rng.gauss(familiarity * 4, 1.2))), self._score(.5, .24)
             notes = ["Tried several options and was disappointed."] if used >= 2 and satisfaction < .4 else ["Had a useful experience in this category."] if satisfaction > .68 else []

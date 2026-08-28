@@ -15,7 +15,10 @@ def motivations(agent: Agent, scenario: ProductScenario, event: SimulationEvent,
     if perception.perceived_effort > .5:
         result.append(Motivation(source="habit", direction="away", strength=perception.perceived_effort * agent.habit_strength, reason="Using it consistently would disrupt an established routine."))
     if scenario.price > 0:
-        burden = clamp(scenario.price * (4 if scenario.pricing_model in {"monthly", "subscription"} else 1) / max(agent.disposable_income, 1))
+        recurring_cost = 4 if scenario.pricing_model in {"monthly", "subscription"} else 1
+        sensitivity = .35 + agent.price_sensitivity * 1.3
+        raw_burden = scenario.price * recurring_cost * sensitivity / max(agent.disposable_income, 1)
+        burden = raw_burden / (1 + raw_burden)
         if burden > .15:
             result.append(Motivation(source="money", direction="away", strength=clamp(burden * .75 + agent.state.financial_pressure * .35), reason="The cost competes with more immediate financial priorities."))
     if event.source_agent_id:
