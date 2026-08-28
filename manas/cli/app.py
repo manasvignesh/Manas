@@ -16,6 +16,7 @@ from manas.cli.prompts import SimulationSetup, ask_idea_first, ask_new_simulatio
 from manas.simulation.engine import SimulationEngine, SimulationResult
 from manas.simulation.models import ProductScenario, SimulationConfig
 from manas.scenarios import parse_scenario
+from manas.reasoning.factory import build_reasoning_engine
 from manas.storage import Database, SimulationRepository
 from manas.utils.config import (
     AppConfig,
@@ -54,7 +55,10 @@ def execute_simulation(setup: SimulationSetup) -> SimulationResult:
     presenter = ProgressPresenter(console)
     presenter.started(setup.config.population_size)
     try:
-        result = asyncio.run(SimulationEngine().run(setup.scenario, setup.config, day_observer=presenter.report))
+        engine = SimulationEngine(reasoning=build_reasoning_engine(load_config()))
+        result = asyncio.run(
+            engine.run(setup.scenario, setup.config, day_observer=presenter.report)
+        )
     except KeyboardInterrupt as error:
         console.print("\n[warning]Simulation stopped safely. No partial run was saved.[/warning]")
         raise typer.Exit(130) from error

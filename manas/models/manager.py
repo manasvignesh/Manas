@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
+import subprocess
 
 from rich.console import Console
 from rich.prompt import Confirm, Prompt
@@ -8,6 +10,8 @@ from rich.table import Table
 
 from manas.cli.prompts import choose
 from manas.models.discovery import DetectedModel, detect_models, inspect_system
+from manas.models.catalog import load_catalog, recommend
+from manas.models.downloader import ChecksumError, download_model
 from manas.utils.config import load_config, save_config
 
 
@@ -62,18 +66,44 @@ def install_guidance(console: Console) -> None:
     ram_gb = (profile.ram_bytes or 0) / (1024 ** 3)
     recommended = "Advanced" if ram_gb >= 24 and profile.gpu else "Balanced" if ram_gb >= 12 else "Lite"
     console.print("\n[heading]System profile[/heading]")
+    console.print(f"OS: {profile.os_name}")
     console.print(f"CPU threads: {profile.cpu_threads}")
     console.print(f"RAM: {_size(profile.ram_bytes)}")
     console.print(f"GPU: {profile.gpu or 'not detected'}")
     console.print(f"Free disk: {_size(profile.disk_free_bytes)}")
-    choice = choose(console, "Choose model class", ["Lite / about 1B / fastest", "Balanced / about 3B / moderate", "Advanced / about 7B / higher load", "Cancel"])
-    labels = {1: "Lite", 2: "Balanced", 3: "Advanced"}
-    if choice == 4:
+    catalog = load_catalog()
+    entry = recommend(catalog, profile.ram_bytes)
+    console.print(f"\nBest fit: [accent]{entry.display_name}[/accent]")
+    console.print(f"{entry.parameters} / {entry.quantization} / {_size(entry.size_bytes)} download")
+    console.print(f"License: {entry.license}\n{entry.description}")
+    console.print("\nRuns only on this computer. No API key. No cloud processing.", style="muted")
+    if not Confirm.ask("\nInstall?", default=False, console=console):
         return
-    label = labels[choice]
-    console.print(f"\nRecommended for this system: [accent]{recommended}[/accent]")
-    console.print(f"Selected: {label}")
-    console.print("\nMANAS does not yet bundle a model catalog or download automatically. Import an approved GGUF file or use an existing Ollama model.", style="muted")
+    progress_value = -1
+
+    def progress(received: int, total: int) -> None:
+        nonlocal progress_value
+        current = int(received / max(total, 1) * 10)
+        if current != progress_value:
+            progress_value = current
+            console.print(f"Downloading... {min(100, current * 10)}%", style="muted")
+    try:
+        path = download_model(entry, progress=progress)
+    except ChecksumError as error:
+        console.print(f"[error]{error}[/error]")
+        return
+    config = load_config()
+    config.reasoning_engine = "llama.cpp"
+    config.active_model_path = str(path)
+    if str(path) not in config.model_paths:
+        config.model_paths.append(str(path))
+    save_config(config)
+    console.print(f"[success]OK[/success] Installed {entry.display_name} to {path}")
+    if not (shutil.which("llama-cli") or shutil.which("llama")):
+        console.print("\nA llama.cpp runtime is required to use this GGUF model.")
+        if shutil.which("winget") and Confirm.ask("Install llama.cpp with winget?", default=False, console=console):
+            result = subprocess.run(["winget", "install", "llama.cpp", "--accept-package-agreements", "--accept-source-agreements"], check=False)
+            console.print("Runtime installed." if result.returncode == 0 else "Runtime installation did not complete; the native simulation will continue without it.")
 
 
 def benchmark(console: Console, models: list[DetectedModel]) -> None:
@@ -102,7 +132,9 @@ def interactive_models(console: Console) -> None:
     config = load_config()
     models = detect_models(config)
     show_models(console, models)
-    choice = choose(console, "Model options", ["Use existing local model", "Install model", "Import GGUF model", "Benchmark model", "Remove model configuration", "Run without model", "Back"])
+    active = config.active_model_path or "No reasoning model active."
+    console.print(f"Active: {active}", style="muted")
+    choice = choose(console, "Model options", ["Use a model already on this computer", "Install recommended model", "Import GGUF model", "Benchmark model", "Remove model configuration", "Run without model", "Back"])
     if choice == 1:
         choose_existing(console, models)
     elif choice == 2:

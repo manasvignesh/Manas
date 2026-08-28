@@ -20,6 +20,7 @@ class DetectedModel:
 
 @dataclass(frozen=True)
 class SystemProfile:
+    os_name: str
     cpu_threads: int
     ram_bytes: int | None
     disk_free_bytes: int
@@ -59,7 +60,8 @@ def _gpu_name() -> str | None:
 def inspect_system() -> SystemProfile:
     root = home_dir()
     probe = root if root.exists() else root.parent
-    return SystemProfile(max(1, os.cpu_count() or 1), _ram_bytes(), shutil.disk_usage(probe).free, _gpu_name())
+    import platform
+    return SystemProfile(platform.platform(), max(1, os.cpu_count() or 1), _ram_bytes(), shutil.disk_usage(probe).free, _gpu_name())
 
 
 def _ollama_models() -> list[DetectedModel]:

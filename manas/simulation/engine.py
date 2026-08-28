@@ -86,7 +86,13 @@ class SimulationEngine:
                     before = agent.opinion.purchase_intent
                     decision = self.behavior.evaluate(agent, scenario, event, rng)
                     decisions.append(decision)
-                    await self.reasoning.reason(agent, event, {"scenario": scenario, "decision": decision})
+                    reasoning = await self.reasoning.reason(
+                        agent,
+                        event,
+                        {"scenario": scenario, "decision": decision},
+                    )
+                    if reasoning.reason:
+                        decision.explanation.append(f"In their own words: {reasoning.reason}")
                     self._update_agent(agent, event, decision, scenario, sequence)
                     sequence += 1
                     if abs(agent.opinion.purchase_intent - before) >= .05:
