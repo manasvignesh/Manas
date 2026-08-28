@@ -39,3 +39,17 @@ CONTRADICTIONS = [
     "Prefers familiar brands but enjoys trying novel apps.",
     "Avoids subscriptions but forgets to cancel free trials.",
 ]
+
+LIFE_CONTEXTS = [
+    ("fitness push", "Trying to improve fitness before an upcoming personal milestone.", ["fitness", "confidence", "health"], .72, -.05),
+    ("saving for a phone", "Saving carefully for a new phone and avoiding avoidable spending.", ["technology", "saving", "price"], .62, -.45),
+    ("exam preparation", "Preparing for important exams with little spare attention.", ["education", "focus", "stress"], .78, -.12),
+    ("new job", "Recently started a job and is adjusting to a new routine.", ["career", "status", "routine"], .55, .28),
+    ("income disruption", "Recently lost work or had income become uncertain.", ["saving", "family", "price"], .82, -.8),
+    ("wedding planning", "Planning a wedding and balancing status with a tight budget.", ["family", "status", "price"], .76, -.52),
+    ("expense reduction", "Actively trying to reduce monthly expenses.", ["saving", "price", "subscriptions"], .68, -.58),
+    ("starting college", "Starting college and trying to fit into new social circles.", ["education", "friends", "status"], .7, -.3),
+    ("living away from home", "Living away from home and making more decisions independently.", ["independence", "convenience", "budget"], .58, -.22),
+    ("supporting family", "Contributing to household expenses and prioritizing family needs.", ["family", "security", "price"], .8, -.62),
+    ("subscription disappointment", "Recently had a bad experience with a subscription that was hard to cancel.", ["subscriptions", "trust", "price"], .6, -.18),
+]
