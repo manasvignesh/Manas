@@ -48,7 +48,7 @@ def load_run(run_id: str, debug: bool = False) -> SimulationResult:
         if debug:
             raise
         console.print(f"[error]Could not load simulation {run_id!r}.[/error]")
-        console.print("\nRun:\n  manas info\n\nto see whether local simulations are available.", style="muted")
+        console.print("\nTry:\n  manas runs\n\nto see available local simulations.", style="muted")
         raise typer.Exit(1) from error
 
 
@@ -60,10 +60,16 @@ def execute_simulation(setup: SimulationSetup) -> SimulationResult:
         result = asyncio.run(
             engine.run(setup.scenario, setup.config, day_observer=presenter.report)
         )
+        repository().save(result)
     except KeyboardInterrupt as error:
         console.print("\n[warning]Simulation stopped safely. No partial run was saved.[/warning]")
         raise typer.Exit(130) from error
-    repository().save(result)
+    except Exception as error:
+        if setup.config.debug:
+            raise
+        console.print("\n[error]MANAS couldn't complete or save this simulation.[/error]")
+        console.print("Try again, or add --debug to a scripted run for technical details.", style="muted")
+        raise typer.Exit(1) from error
     show_summary(console, result)
     if setup.config.debug:
         show_debug(console, result)
@@ -297,7 +303,8 @@ def show_runs() -> None:
     console.print("\n[heading]Runs[/heading]\n")
     for index, record in enumerate(records, 1):
         pin = " (pinned)" if record.pinned else ""
-        replay = " replay" if index > 1 and record.scenario_name == records[index - 2].scenario_name else ""
+        older_records = records[index:]
+        replay = " replay" if any(older.scenario_name == record.scenario_name for older in older_records) else ""
         console.print(f"{index:>2}  {record.scenario_name[:38]}{replay}{pin}")
         console.print(f"    {record.population_size} people / {record.days} days / {record.run_id}", style="muted")
 

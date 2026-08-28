@@ -38,7 +38,9 @@ def test_golden_society_has_multiple_paths_memory_cascades_and_grounded_insights
 
 
 def test_price_replay_changes_sensitive_people_more_and_spares_low_relevance():
-    agents = run_golden().agents
+    original = run_golden()
+    replay = run_golden(199)
+    agents = original.agents
     event = SimulationEvent(id="replay", day=1, event_type="product_seen", target_agent_ids=[a.id for a in agents])
     engine = BehaviorEngine()
     sensitive = []
@@ -65,6 +67,16 @@ def test_price_replay_changes_sensitive_people_more_and_spares_low_relevance():
     relevant = [shift for shift, relevance in relevance_changes if relevance >= .55]
     assert mean(sensitive) > mean(insensitive)
     assert mean(low_relevance) < mean(relevant)
+
+    actual_changes = []
+    for agent in agents:
+        before = [d.factors["money_conflict"] for d in original.decisions if d.agent_id == agent.id]
+        after = [d.factors["money_conflict"] for d in replay.decisions if d.agent_id == agent.id]
+        if before and after:
+            actual_changes.append((agent.price_sensitivity, abs(mean(after) - mean(before))))
+    actual_sensitive = [change for sensitivity, change in actual_changes if sensitivity >= .65]
+    actual_insensitive = [change for sensitivity, change in actual_changes if sensitivity <= .35]
+    assert mean(actual_sensitive) > mean(actual_insensitive)
 
 
 def test_privacy_event_creates_varied_risk_research_and_peer_effects():

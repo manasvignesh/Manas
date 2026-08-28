@@ -1,0 +1,18 @@
+{
+  "id": "india_v1",
+  "name": "India V1",
+  "version": "2026.1",
+  "status": "experimental",
+  "representative": false,
+  "description": "A synthetic population pack for exercising MANAS behavior and social dynamics. It is not a census model or a statistically representative sample of India.",
+  "files": ["demographics.json", "economics.json", "technology.json", "consumer_behavior.json"],
+  "provenance": {
+    "sourced_data": [],
+    "synthetic_assumptions": [
+      "All current sampling weights and correlations are design assumptions.",
+      "Names, locations, occupations, income bands, traits, contexts, and relationships generate fictional people.",
+      "No output should be interpreted as a measured proportion of India's population."
+    ]
+  },
+  "calibration": "not_calibrated"
+}

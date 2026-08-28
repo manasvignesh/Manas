@@ -1,0 +1,7 @@
+{
+  "data_class": "synthetic_assumptions",
+  "description": "Design weights used to create varied fictional people, not demographic estimates.",
+  "dimensions": ["region", "urbanicity", "age", "occupation", "education", "language", "household"],
+  "limitations": ["Categories are deliberately broad.", "Sampling weights are not derived from census microdata.", "Generated identities do not represent real individuals."],
+  "sources": []
+}

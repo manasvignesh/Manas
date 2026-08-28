@@ -30,6 +30,9 @@ def test_run_aliases_and_pinning(monkeypatch, tmp_path):
     listed = runner.invoke(app, ["runs"])
     assert listed.exit_code == 0
     assert "pinned" in listed.output
+    run_lines = [line for line in listed.output.splitlines() if line.strip().startswith(("1 ", "2 "))]
+    assert "replay" in run_lines[0]
+    assert "replay" not in run_lines[1]
 
 
 def test_home_is_idea_first_not_numbered_menu(monkeypatch, tmp_path):

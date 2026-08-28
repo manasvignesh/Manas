@@ -202,12 +202,21 @@ def show_comparison(console: Console, left: SimulationResult, right: SimulationR
     console.print("\n[heading]Biggest change[/heading]")
     console.print(f"Purchase intent {direction} by {abs(delta):.0%} between these simulated worlds.")
     pairs = [(a, b) for a in left.agents for b in right.agents if a.id == b.id]
-    sensitive = [b.opinion.purchase_intent - a.opinion.purchase_intent for a, b in pairs if a.price_sensitivity >= .65]
-    insensitive = [b.opinion.purchase_intent - a.opinion.purchase_intent for a, b in pairs if a.price_sensitivity <= .35]
+    def price_pressure_change(agent_id: str) -> float | None:
+        before = [d.factors.get("money_conflict", 0) for d in left.decisions if d.agent_id == agent_id]
+        after = [d.factors.get("money_conflict", 0) for d in right.decisions if d.agent_id == agent_id]
+        if not before or not after:
+            return None
+        return abs(sum(after) / len(after) - sum(before) / len(before))
+
+    sensitive = [change for a, _ in pairs if a.price_sensitivity >= .65
+                 and (change := price_pressure_change(a.id)) is not None]
+    insensitive = [change for a, _ in pairs if a.price_sensitivity <= .35
+                   and (change := price_pressure_change(a.id)) is not None]
     if sensitive:
-        console.print(f"Price-sensitive people changed by {sum(sensitive)/len(sensitive):.0%} on average.")
+        console.print(f"Price-sensitive people's perceived price pressure changed by {sum(sensitive)/len(sensitive):.0%} on average.")
     if insensitive:
-        console.print(f"Price-insensitive people changed by {sum(insensitive)/len(insensitive):.0%} on average.")
+        console.print(f"Price-insensitive people's perceived price pressure changed by {sum(insensitive)/len(insensitive):.0%} on average.")
     low_relevance = []
     for agent_a, agent_b in pairs:
         relevant = [d.factors.get("relevance", 0) for d in left.decisions if d.agent_id == agent_a.id]

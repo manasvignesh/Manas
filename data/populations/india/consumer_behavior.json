@@ -1,0 +1,7 @@
+{
+  "data_class": "synthetic_assumptions",
+  "description": "Behavioral priors and temporary life contexts used to test perception, motivation, memory, and social influence.",
+  "dimensions": ["interests", "goals", "values", "contradictions", "life_contexts", "category_experiences", "social_ties"],
+  "limitations": ["Behavior rules have sanity benchmarks but are not empirically calibrated.", "Synthetic reactions must be validated with real people before decisions are made."],
+  "sources": []
+}

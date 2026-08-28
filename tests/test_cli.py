@@ -47,3 +47,20 @@ def test_benchmark_command_reports_all_sanity_checks():
     assert result.exit_code == 0, result.output
     assert result.output.count("PASS") == 5
     assert "not evidence that MANAS predicts real populations" in result.output
+
+
+def test_normal_mode_hides_storage_traceback(monkeypatch, tmp_path):
+    monkeypatch.setenv("MANAS_HOME", str(tmp_path / "home"))
+
+    class BrokenRepository:
+        def save(self, _result):
+            raise OSError("synthetic storage failure")
+
+    monkeypatch.setattr("manas.cli.app.repository", lambda: BrokenRepository())
+    result = runner.invoke(
+        app,
+        ["simulate", "--idea", "Study planner", "--population", "4", "--days", "1"],
+    )
+    assert result.exit_code == 1
+    assert "couldn't complete or save" in result.output
+    assert "Traceback" not in result.output

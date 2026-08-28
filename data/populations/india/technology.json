@@ -1,0 +1,7 @@
+{
+  "data_class": "synthetic_assumptions",
+  "description": "Synthetic correlations among age, occupation, technology familiarity, internet use, and novelty seeking.",
+  "dimensions": ["technology_familiarity", "internet_usage", "novelty_seeking", "category_experience"],
+  "limitations": ["Values are not measurements of digital access or adoption.", "Correlations exist to create plausible variation, not population forecasts."],
+  "sources": []
+}

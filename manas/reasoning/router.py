@@ -41,6 +41,7 @@ class ReasoningRouter:
             return await self.fallback.reason(agent, event, context)
         try:
             return await self.enhanced.reason(agent, event, context)
-        except Exception:
-            logger.exception("Local reasoning failed; native decision retained")
+        except Exception as error:
+            logger.warning("Local reasoning failed (%s); native decision retained", type(error).__name__)
+            logger.debug("Local reasoning failure details", exc_info=True)
             return await self.fallback.reason(agent, event, context)

@@ -1,0 +1,7 @@
+{
+  "data_class": "synthetic_assumptions",
+  "description": "Fictional income bands, disposable-income ranges, and financial-pressure correlations for behavioral testing.",
+  "dimensions": ["income_band", "disposable_income", "financial_pressure", "frugality", "price_sensitivity"],
+  "limitations": ["Currency amounts are simulation parameters rather than income statistics.", "The pack is not suitable for estimating purchasing power or demand."],
+  "sources": []
+}

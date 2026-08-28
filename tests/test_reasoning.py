@@ -49,9 +49,11 @@ def test_router_only_calls_model_for_ambiguous_or_conflicted_decisions():
     assert reasoner.calls == 1
 
 
-def test_model_failure_falls_back_without_crashing_simulation():
+def test_model_failure_falls_back_without_crashing_simulation(caplog):
     scenario = ProductScenario(name="Notebook", description="A paper notebook")
     config = SimulationConfig(population_size=8, days=2, seed=7)
     result = asyncio.run(SimulationEngine(reasoning=ReasoningRouter(FailingReasoner())).run(scenario, config))
     assert result.summary.population_size == 8
     assert result.decisions
+    assert "native decision retained" in caplog.text
+    assert "Traceback" not in caplog.text
