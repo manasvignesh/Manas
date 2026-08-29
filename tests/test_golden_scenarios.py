@@ -1,4 +1,5 @@
 import asyncio
+from collections import Counter
 from statistics import mean
 
 from manas.behavior.engine import BehaviorEngine
@@ -35,6 +36,22 @@ def test_golden_society_has_multiple_paths_memory_cascades_and_grounded_insights
     assert result.summary.findings["strongest_pull"]
     assert result.summary.findings["biggest_resistance"]
     assert result.summary.real_world_tests
+
+    by_id = {agent.id: agent for agent in result.agents}
+    student_relevance = [d.factors["relevance"] for d in result.decisions if by_id[d.agent_id].occupation == "student"]
+    unrelated_relevance = [d.factors["relevance"] for d in result.decisions if by_id[d.agent_id].occupation in {"farmer", "retired"}]
+    assert mean(student_relevance) > mean(unrelated_relevance) + .12
+    target_decisions = [d for d in result.decisions if d.factors["target_match"] >= .65]
+    assert target_decisions and any(d.action not in {"buy_now", "subscribe", "try_once", "try_free"} for d in target_decisions)
+    non_target = [d for d in result.decisions if d.factors["target_match"] < .5]
+    assert max(sum(d.probabilities.get(action, 0) for action in {"buy_now", "subscribe", "try_once", "try_free"}) for d in non_target) > .05
+    assert result.summary.sentiment["negative"] < .75
+    topics = Counter(item.topic for item in result.information)
+    assert topics["price"] > 0
+    assert topics["privacy"] < max(topics.values())
+    resistance = Counter(item["source"] for decision in result.decisions for item in decision.motivations if item["direction"] == "away")
+    assert resistance["habit"] == 0
+    assert max(resistance[source] for source in {"existing alternative", "consistency friction", "subscription fatigue"}) < len(result.decisions) * .5
 
 
 def test_price_replay_changes_sensitive_people_more_and_spares_low_relevance():
@@ -77,6 +94,22 @@ def test_price_replay_changes_sensitive_people_more_and_spares_low_relevance():
     actual_sensitive = [change for sensitivity, change in actual_changes if sensitivity >= .65]
     actual_insensitive = [change for sensitivity, change in actual_changes if sensitivity <= .35]
     assert mean(actual_sensitive) > mean(actual_insensitive)
+
+    replay_by_agent_day = {(decision.agent_id, decision.day): decision for decision in replay.decisions}
+    purchase_actions = {"buy_now", "subscribe", "try_once", "try_free"}
+    observed = []
+    for before in original.decisions:
+        after = replay_by_agent_day.get((before.agent_id, before.day))
+        if after is None or before.day != 1:
+            continue
+        agent = next(agent for agent in agents if agent.id == before.agent_id)
+        purchase_shift = sum(after.probabilities.get(action, 0) - before.probabilities.get(action, 0) for action in purchase_actions)
+        observed.append((agent.price_sensitivity, before.factors["relevance"], purchase_shift))
+    high_relevance_sensitive = [shift for sensitivity, relevance, shift in observed if sensitivity >= .6 and relevance >= .4]
+    low_relevance = [abs(shift) for _, relevance, shift in observed if relevance < .25]
+    assert mean(high_relevance_sensitive) >= .03
+    assert mean(low_relevance) < mean(high_relevance_sensitive)
+    assert replay.summary.average_purchase_intent > original.summary.average_purchase_intent + .01
 
 
 def test_privacy_event_creates_varied_risk_research_and_peer_effects():

@@ -3,6 +3,7 @@ from __future__ import annotations
 import random
 
 from manas.agents.models import Agent
+from manas.behavior.calibration import DEFAULT_CALIBRATION
 from manas.behavior.consideration import build_consideration_set
 from manas.behavior.motivations import motivations
 from manas.behavior.perception import perceive
@@ -29,12 +30,12 @@ class BehaviorEngine:
         perception = perceive(agent, scenario, event)
         motives = motivations(agent, scenario, event, perception)
         consideration = build_consideration_set(agent, scenario, event, perception, motives)
-        weights = {action: rng.uniform(.78, 1.22) for action in consideration.actions}
         money_away = max((m.strength for m in motives if m.source == "money" and m.direction == "away"), default=0)
         toward = max((m.strength for m in motives if m.direction == "toward"), default=0)
         away = max((m.strength for m in motives if m.direction == "away"), default=0)
         modes = self._modes(agent, event, perception, money_away)
         mode = rng.choices([item[0] for item in modes], weights=[item[1] for item in modes], k=1)[0]
+        weights = {action: rng.uniform(.78, 1.22) for action in consideration.actions}
 
         # Relevance is a gate: disposable income cannot manufacture a need.
         if perception.perceived_problem_relevance < .2:
@@ -50,16 +51,24 @@ class BehaviorEngine:
             _multiply(weights, {"wait_for_discount", "save_for_later", "try_free", "compare_alternative"}, 3.2)
             _multiply(weights, {"buy_now", "subscribe"}, .32)
             if mode == "impulse":
-                _multiply(weights, {"buy_now", "subscribe"}, 5.5)
+                _multiply(weights, {"buy_now", "subscribe"}, 1.4)
         elif money_away < .2 and perception.perceived_value > .55:
             _multiply(weights, {"buy_now", "subscribe", "try_once"}, 2.8)
+
+        # Price acceptance continuously affects decisions after an action enters
+        # consideration; it is not merely a threshold used during perception.
+        if perception.perceived_problem_relevance > .4:
+            purchase_multiplier = .25 + perception.perceived_affordability ** 2 * DEFAULT_CALIBRATION.price_decision_strength
+            _multiply(weights, {"buy_now", "subscribe", "try_once", "try_free"}, purchase_multiplier)
+            deferral_multiplier = .40 + money_away * 2.20
+            _multiply(weights, {"wait_for_discount", "save_for_later", "compare_alternative"}, deferral_multiplier)
 
         # Privacy plus trusted social proof commonly creates investigation, not binary rejection.
         if perception.perceived_risk > .55 and event.source_agent_id and event.sentiment > 0:
             _multiply(weights, {"search_reviews", "ask_friend", "watch_demo"}, 4)
             _multiply(weights, {"reject"}, 1.3)
-        elif perception.perceived_risk > .7:
-            _multiply(weights, {"reject", "search_reviews", "criticize"}, 2.7)
+        elif perception.perceived_risk > .65:
+            _multiply(weights, {"reject", "search_reviews", "criticize"}, 3.2)
 
         self._apply_mode(mode, weights, agent)
         if toward > .65 and away > .65:
@@ -72,7 +81,9 @@ class BehaviorEngine:
         factors = {
             "relevance": perception.perceived_problem_relevance, "value": perception.perceived_value,
             "risk": perception.perceived_risk, "effort": perception.perceived_effort,
-            "money_conflict": money_away, "toward_conflict": toward, "away_conflict": away,
+            "target_match": perception.target_match, "affordability": perception.perceived_affordability,
+            "money_conflict": money_away,
+            "toward_conflict": toward, "away_conflict": away,
         }
         return Decision(agent_id=agent.id, day=event.day, action=action, probabilities=probabilities, factors=factors,
             explanation=reasons, perception=perception.model_dump(mode="json"),
@@ -83,7 +94,7 @@ class BehaviorEngine:
         modes = [("ordinary", .35)]
         if agent.personality.impulsiveness > .52 and perception.perceived_problem_relevance > .4:
             modes.append(("impulse", agent.personality.impulsiveness * (1 + perception.perceived_novelty)))
-        if agent.personality.skepticism > .5 or money_away > .4:
+        if agent.personality.skepticism > .5 or agent.personality.frugality > .65:
             modes.append(("careful evaluation", agent.personality.skepticism + agent.personality.frugality))
         if event.source_agent_id:
             modes.append(("social proof", agent.personality.social_conformity + event.intensity))

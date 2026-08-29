@@ -16,11 +16,11 @@ def test_calibration_record_exposes_error_without_claiming_accuracy():
 
 def test_behavior_benchmarks_pass():
     results = run_benchmarks()
-    assert [item.name for item in results] == [
-        "affordability sensitivity",
-        "relevance dominates irrelevant wealth",
-        "trusted-peer influence",
-        "seed variation",
-        "contradiction handling",
-    ]
+    names = {item.name for item in results}
+    assert {
+        "target audience relevance", "non-target users can still convert",
+        "price-sensitive response", "price-insensitive stability",
+        "sentiment-action coherence", "habit dominance guard", "topic diversity",
+        "segment minimum sample", "agent explanation diversity",
+    } <= names
     assert all(item.passed for item in results), [item.model_dump() for item in results]

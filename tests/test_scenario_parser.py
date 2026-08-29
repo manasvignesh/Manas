@@ -9,6 +9,10 @@ def test_parser_structures_fitness_subscription():
     assert "education" in scenario.secondary_categories
     assert scenario.technologies == ["AI", "software"]
     assert scenario.target_audience == "college students"
+    assert scenario.target_profile.age_range == (17, 27)
+    assert scenario.target_profile.occupations == ["student"]
+    assert scenario.target_profile.regions == ["India"]
+    assert "fitness" in scenario.target_profile.interests
     assert scenario.price == 399
     assert scenario.pricing_model == "monthly"
     assert scenario.privacy_exposure >= .5

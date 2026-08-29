@@ -50,6 +50,9 @@ def test_router_only_calls_model_for_ambiguous_or_conflicted_decisions():
 
 
 def test_model_failure_falls_back_without_crashing_simulation(caplog):
+    agent = PopulationGenerator(7).generate(1)[0]
+    event = SimulationEvent(id="fallback", day=1, event_type="product_seen", target_agent_ids=[agent.id])
+    asyncio.run(ReasoningRouter(FailingReasoner()).reason(agent, event, {"decision": decision()}))
     scenario = ProductScenario(name="Notebook", description="A paper notebook")
     config = SimulationConfig(population_size=8, days=2, seed=7)
     result = asyncio.run(SimulationEngine(reasoning=ReasoningRouter(FailingReasoner())).run(scenario, config))

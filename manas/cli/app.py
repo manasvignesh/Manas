@@ -10,7 +10,7 @@ from rich.table import Table
 
 from manas import __version__
 from manas.analytics.export import export_result
-from manas.calibration import run_benchmarks
+from manas.calibration import diagnose_result, run_benchmarks
 from manas.cli.formatting import console
 from manas.cli.presenters import ProgressPresenter, show_agents, show_comparison, show_debug, show_header, show_ready, show_summary
 from manas.cli.prompts import SimulationSetup, ask_idea_first, ask_new_simulation, ask_replay_change, choose, confirm_start, parse_replay_change
@@ -235,9 +235,11 @@ def compare(run_a: str, run_b: str, debug: bool = typer.Option(False)) -> None:
 
 
 @app.command()
-def agents(run_id: str, search: str = typer.Option("", help="Name, ID, city, or occupation."), limit: int = typer.Option(20, min=1), debug: bool = typer.Option(False)) -> None:
+def agents(run_id: str, search: str = typer.Option("", help="Name, ID, city, or occupation."),
+           agent_id: str | None = typer.Option(None, "--id", help="Exact agent ID."),
+           limit: int = typer.Option(20, min=1), debug: bool = typer.Option(False)) -> None:
     """Explore persistent agents and their decision explanations."""
-    show_agents(console, load_run(run_id, debug), search, limit)
+    show_agents(console, load_run(run_id, debug), agent_id or search, 1 if agent_id else limit, debug)
 
 
 @app.command("export")
@@ -283,6 +285,17 @@ def benchmark() -> None:
     console.print("\nThese are model invariants, not evidence that MANAS predicts real populations.", style="muted")
     if not all(result.passed for result in results):
         raise typer.Exit(1)
+
+
+@app.command()
+def diagnose(run_id: Annotated[str, typer.Argument()] = "latest", debug: bool = typer.Option(False)) -> None:
+    """Report behavioral health and calibration-skew indicators for a saved run."""
+    result = load_run(run_id, debug)
+    console.print("\n[heading]MANAS DIAGNOSTICS[/heading]\n")
+    for check in diagnose_result(result):
+        style = "success" if check.status == "PASS" else "warning"
+        console.print(f"[{style}]{check.status}[/{style}] {check.name}")
+        console.print(f"     {check.evidence}", style="muted")
 
 
 @app.command()

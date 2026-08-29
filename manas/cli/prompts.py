@@ -50,7 +50,7 @@ def ask_new_simulation(console: Console, default_population: int = 100, default_
     choose(console, "Region?", ["India"], default=1)
     days = IntPrompt.ask("\nSimulation length in days?", default=30, console=console)
     seed = IntPrompt.ask("\nRandom seed?", default=default_seed, console=console)
-    scenario = parse_scenario(idea, price=max(0, price), pricing_model=pricing_model, target_audience="Indian consumers")
+    scenario = parse_scenario(idea, price=max(0, price), pricing_model=pricing_model)
     config = SimulationConfig(population_size=max(1, population), days=max(1, days), seed=seed)
     return SimulationSetup(scenario, config)
 

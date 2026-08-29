@@ -3,6 +3,7 @@ from manas.behavior.motivations import motivations
 from manas.behavior.perception import perceive
 from manas.population.generator import PopulationGenerator
 from manas.scenarios import parse_scenario
+from manas.scenarios.targeting import target_match
 from manas.simulation.models import SimulationEvent
 
 
@@ -45,3 +46,14 @@ def test_motivations_conflict_and_consideration_is_contextual():
     assert len(action_sets) >= 3
     assert any("wait_for_discount" in actions for actions in action_sets)
     assert any("ask_friend" in actions for actions in action_sets)
+
+
+def test_college_fitness_target_materially_changes_relevance_without_being_absolute():
+    agents = PopulationGenerator(42).generate(160)
+    scenario = parse_scenario("AI fitness coach for Indian college students at INR 399/month")
+    event = SimulationEvent(id="target", day=1, event_type="product_seen", target_agent_ids=[])
+    students = [perceive(agent, scenario, event).perceived_problem_relevance for agent in agents if agent.occupation == "student"]
+    unrelated = [perceive(agent, scenario, event).perceived_problem_relevance for agent in agents if agent.occupation in {"farmer", "retired"}]
+    assert sum(students) / len(students) > sum(unrelated) / len(unrelated) + .15
+    assert all(0 < target_match(agent, scenario) <= 1 for agent in agents)
+    assert any(target_match(agent, scenario) > .45 for agent in agents if agent.occupation != "student")

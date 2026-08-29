@@ -12,11 +12,22 @@ Action = Literal[
 ]
 
 
+class TargetAudience(BaseModel):
+    age_range: tuple[int, int] | None = None
+    occupations: list[str] = Field(default_factory=list)
+    education_states: list[str] = Field(default_factory=list)
+    regions: list[str] = Field(default_factory=list)
+    interests: list[str] = Field(default_factory=list)
+    life_stages: list[str] = Field(default_factory=list)
+    minimum_technology_familiarity: float | None = Field(default=None, ge=0, le=1)
+
+
 class ProductScenario(BaseModel):
     name: str
     description: str
     problem_solved: str = ""
     target_audience: str = "general consumers"
+    target_profile: TargetAudience = Field(default_factory=TargetAudience)
     price: float = Field(default=0, ge=0)
     pricing_model: str = "one-time"
     features: list[str] = Field(default_factory=list)

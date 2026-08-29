@@ -5,6 +5,8 @@ from collections import Counter, defaultdict
 import networkx as nx
 
 from manas.agents.models import Agent
+from manas.analytics.segments import strongest_segments
+from manas.analytics.sentiment import classify_sentiment
 from manas.simulation.models import Decision, ProductScenario, SimulationSummary
 from manas.society.models import SocialInteraction
 
@@ -21,12 +23,13 @@ def _top_source(decisions: list[Decision], actions: set[str], direction: str) ->
 def analyze(run_id: str, seed: int, days: int, agents: list[Agent], decisions: list[Decision], graph: nx.Graph,
             opinion_changes: int, scenario: ProductScenario | None = None,
             social_interactions: list[SocialInteraction] | None = None) -> SimulationSummary:
-    sentiments = Counter(agent.opinion.sentiment for agent in agents)
+    decisions_by_agent = defaultdict(list)
+    for decision in decisions:
+        decisions_by_agent[decision.agent_id].append(decision)
+    sentiments = Counter(classify_sentiment(agent, decisions_by_agent[agent.id]) for agent in agents)
     actions = Counter(decision.action for decision in decisions)
-    by_segment: dict[str, list[float]] = defaultdict(list)
-    for agent in agents:
-        by_segment[agent.occupation].append(agent.opinion.purchase_intent)
-    ranked = sorted(((sum(values) / len(values), key) for key, values in by_segment.items()), reverse=True)
+    active_scenario = scenario or ProductScenario(name="Scenario", description="Scenario")
+    most_receptive, least_receptive = strongest_segments(agents, active_scenario)
     pull, pull_count = _top_source(decisions, POSITIVE_ACTIONS, "toward")
     resistance, resistance_count = _top_source(decisions, RESISTANT_ACTIONS, "away")
     agent_by_id = {agent.id: agent for agent in agents}
@@ -38,14 +41,28 @@ def analyze(run_id: str, seed: int, days: int, agents: list[Agent], decisions: l
     else:
         surprise = "Affordability and relevance generally moved together; no strong lower-income exception emerged in this run."
     if high_cred and low_cred:
-        social = f"Higher-credibility peer messages shifted opinions about {sum(high_cred)/len(high_cred):.1%} on average versus {sum(low_cred)/len(low_cred):.1%} for weaker ties."
+        high_average, low_average = sum(high_cred) / len(high_cred), sum(low_cred) / len(low_cred)
+        if abs(high_average - low_average) < .005:
+            social = f"Across {len(social_interactions or [])} peer transmissions, trusted and weaker connections produced similar shifts, so social trust was not a major differentiator."
+        else:
+            social = f"Higher-credibility peer messages shifted opinions about {high_average:.1%} on average versus {low_average:.1%} for weaker ties."
     else:
         social = f"{len(social_interactions or [])} peer transmissions were recorded; their effects varied with trust and prior belief."
+    resistance_explanations = {
+        "money": "The cost competed with immediate priorities, especially for interested people with limited room in their budgets.",
+        "risk": "Uncertainty about trust and personal data made interested people look for evidence before committing.",
+        "subscription fatigue": "Past subscription frustration made another recurring commitment harder to justify.",
+        "existing alternative": f"Existing {active_scenario.category} routines and free alternatives already covered part of the need.",
+        "consistency friction": "Some interested people doubted they would consistently maintain another routine.",
+    }
     findings = {
-        "who_wants_this": f"{ranked[0][1].title()} agents were most receptive in this society ({ranked[0][0]:.0%} average intent).",
-        "who_does_not": f"{ranked[-1][1].title()} agents were least receptive ({ranked[-1][0]:.0%} average intent).",
+        "who_wants_this": f"{most_receptive.label} were the most receptive meaningful group ({most_receptive.size} people; {most_receptive.average_intent:.0%} average intent).",
+        "who_does_not": f"{least_receptive.label} were least receptive ({least_receptive.size} people; {least_receptive.average_intent:.0%} average intent).",
         "strongest_pull": f"{pull.replace('_', ' ').title()} appeared in {pull_count} positive consideration paths.",
-        "biggest_resistance": f"{resistance.replace('_', ' ').title()} appeared in {resistance_count} resistant consideration paths.",
+        "biggest_resistance": resistance_explanations.get(
+            resistance,
+            f"{resistance.replace('_', ' ').title()} shaped {resistance_count} resistant consideration paths.",
+        ),
         "unexpected": surprise,
         "social_effect": social,
     }

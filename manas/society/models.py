@@ -35,8 +35,11 @@ class OpinionCascade(BaseModel):
     information_id: str
     topic: str
     claim: str
+    stance: str = "mixed"
     reached: int
     communities: list[str]
+    communities_touched: int = 0
+    transmission_count: int = 0
     key_agent_id: str | None = None
 
 

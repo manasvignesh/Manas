@@ -38,6 +38,7 @@ class ProgressPresenter:
 
     def __init__(self, console: Console) -> None:
         self.console = console
+        self._last_topics: tuple[str, ...] = ()
 
     def started(self, population: int) -> None:
         self.console.print("\n[heading]Creating society...[/heading]\n")
@@ -62,9 +63,11 @@ class ProgressPresenter:
         else:
             self.console.print("No major reaction was triggered today.")
         self.console.print(f"{report.awareness} agents have encountered the idea.", style="muted")
-        if report.spreading_topics:
+        topics_key = tuple(report.spreading_topics)
+        if report.spreading_topics and topics_key != self._last_topics:
             topics = ", ".join(report.spreading_topics[:2])
             self.console.print(f"A conversation about {topics} is spreading through social circles.", style="warning")
+            self._last_topics = topics_key
 
 
 def _notable_decisions(result: SimulationResult, limit: int = 3) -> list[tuple[Agent, Decision]]:
@@ -82,22 +85,41 @@ def _notable_decisions(result: SimulationResult, limit: int = 3) -> list[tuple[A
     return chosen
 
 
+def reaction_narrative(agent: Agent, decision: Decision, scenario: ProductScenario) -> str:
+    context = agent.life_contexts[0].description if agent.life_contexts else f"{agent.name} is balancing {agent.goals[0]} with everyday constraints."
+    experience = agent.category_experiences.get(scenario.category)
+    variants = {
+        "subscribe": ["decided the ongoing support could justify a subscription", "saw enough personal value to consider paying monthly"],
+        "buy_now": ["felt ready to pay now", "decided the benefit was worth acting on"],
+        "reject": ["decided the unresolved concerns outweighed the promise", "could not find enough value or trust to continue"],
+        "ask_friend": ["wanted a trusted person's view before going further", "turned to someone familiar for a reality check"],
+        "wait_for_discount": ["remained interested but chose to wait for a better price", "could imagine using it, but not at the current price"],
+        "search_reviews": ["looked for evidence from people who had actually tried it", "wanted proof of results before committing"],
+    }
+    choices = variants.get(decision.action, [f"chose to {decision.action.replace('_', ' ')}"])
+    index = sum(ord(character) for character in agent.id) % len(choices)
+    action_sentence = f"{agent.name} {choices[index]}."
+    if decision.factors.get("money_conflict", 0) > .5:
+        detail = "The price competes with immediate priorities, so relevance alone was not enough."
+    elif experience and experience.products_used:
+        detail = f"Past experience with {experience.products_used} {scenario.category} option(s) shaped what felt credible this time."
+    elif decision.factors.get("target_match", 0) >= .65:
+        detail = "The idea fits their current stage of life, making its promise unusually concrete."
+    elif agent.memories and agent.memories[0].category not in {"decision", "general"}:
+        detail = f"A recent memory about {agent.memories[0].category} was still part of the decision."
+    else:
+        detail = "Their current goals made the idea relevant, while trust still had to be earned."
+    return f"{context} {action_sentence} {detail}"
+
+
 def show_activity(console: Console, result: SimulationResult) -> None:
     notable = _notable_decisions(result)
     if not notable:
         return
     console.print("\n[heading]Notable reactions[/heading]\n")
-    descriptions = {
-        "buy_now": "Interest overcame the remaining concerns.",
-        "subscribe": "The expected benefit felt worth an ongoing commitment.",
-        "reject": "The idea did not clear this person's trust and value threshold.",
-        "ask_friend": "Uncertainty led to a peer conversation.",
-        "wait_for_discount": "The idea mattered, but the current price did not work.",
-        "search_reviews": "Interest and uncertainty led to a search for evidence.",
-    }
     for agent, decision in notable:
         console.print(f"[accent]{agent.name}[/accent] / {agent.location}")
-        console.print(descriptions[decision.action])
+        console.print(reaction_narrative(agent, decision, result.scenario))
         console.print("What mattered:")
         for reason in decision.explanation[1:]:
             console.print(f"- {reason}")
@@ -124,8 +146,12 @@ def show_summary(console: Console, result: SimulationResult) -> None:
     show_activity(console, result)
     if result.cascades:
         cascade = result.cascades[0]
+        communities = cascade.communities_touched or min(len(cascade.communities), cascade.reached)
+        transmissions = cascade.transmission_count or max(0, cascade.reached - 1)
+        message_kind = "concern" if cascade.stance == "negative" else "recommendation" if cascade.stance == "positive" else "discussion"
+        community_word = "community" if communities == 1 else "communities"
         console.print("\n[heading]Social ripple[/heading]")
-        console.print(f"A {cascade.topic} message reached {cascade.reached} people across {len(cascade.communities)} overlapping circles.")
+        console.print(f"A {cascade.topic} {message_kind} reached {cascade.reached} unique people across {communities} connected {community_word} through {transmissions} transmissions.")
     if result.communities:
         community = result.communities[0]
         console.print("\n[heading]Most active circle[/heading]")
@@ -144,17 +170,18 @@ def show_debug(console: Console, result: SimulationResult, count: int = 3) -> No
         console.print(f"modifiers: {decision.factors}")
 
 
-def show_agents(console: Console, result: SimulationResult, query: str = "", limit: int = 20) -> None:
+def show_agents(console: Console, result: SimulationResult, query: str = "", limit: int = 20,
+                debug: bool = False) -> None:
     normalized = query.casefold().strip()
     matches = [a for a in result.agents if not normalized or normalized in f"{a.id} {a.name} {a.location} {a.occupation}".casefold()]
     if not matches:
         console.print("[warning]No matching agents.[/warning]")
         return
     for agent in matches[:limit]:
-        show_agent(console, result, agent)
+        show_agent(console, result, agent, debug)
 
 
-def show_agent(console: Console, result: SimulationResult, agent: Agent) -> None:
+def show_agent(console: Console, result: SimulationResult, agent: Agent, debug: bool = False) -> None:
     console.print(f"\n[heading]{agent.name}[/heading]")
     console.print(f"{agent.age} / {agent.location} / {agent.occupation}", style="muted")
     if agent.life_contexts:
@@ -184,6 +211,21 @@ def show_agent(console: Console, result: SimulationResult, agent: Agent) -> None
         console.print(f"Would {decisions[-1].action.replace('_', ' ')}.")
         console.print("\n[heading]What mattered[/heading]")
         for reason in decisions[-1].explanation[1:]: console.print(f"- {reason}")
+    if debug:
+        console.print("\n[heading]Developer trace[/heading]")
+        if decisions:
+            latest = decisions[-1]
+            console.print(f"target relevance: {latest.factors.get('target_match', 0):.3f}")
+            console.print(f"perception: {latest.perception}")
+            console.print(f"motivations: {latest.motivations}")
+            console.print(f"consideration set: {latest.consideration_set}")
+            console.print(f"action distribution: {latest.probabilities}")
+        relevant = agent.relevant_memories(result.config.days, topics={result.scenario.category, "price", "privacy"})
+        console.print(f"memory influence: {[memory.content for memory in relevant]}")
+        interactions = [item for item in (result.social_interactions or [])
+                        if agent.id in {item.speaker_id, item.listener_id}]
+        console.print(f"social influence: {[item.model_dump(mode='json') for item in interactions[-5:]]}")
+        console.print(f"current state after transitions: {agent.state.model_dump(mode='json')}")
 
 
 def show_comparison(console: Console, left: SimulationResult, right: SimulationResult) -> None:

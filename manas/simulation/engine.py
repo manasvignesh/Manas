@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from uuid import uuid4
 
+import networkx as nx
+
 from manas.agents.models import Agent, Memory
 from manas.analytics.insights import analyze
 from manas.behavior.engine import BehaviorEngine
@@ -84,7 +86,8 @@ class SimulationEngine:
                     if agent is None:
                         continue
                     before = agent.opinion.purchase_intent
-                    decision = self.behavior.evaluate(agent, scenario, event, rng)
+                    decision_rng = seeded(config.seed, f"decision:{event.id}:{agent.id}")
+                    decision = self.behavior.evaluate(agent, scenario, event, decision_rng)
                     decisions.append(decision)
                     reasoning = await self.reasoning.reason(
                         agent,
@@ -131,13 +134,15 @@ class SimulationEngine:
                     awareness=sum(agent.opinion.awareness > .05 for agent in agents),
                     opinion_changes=opinion_changes - change_start,
                     actions=dict(Counter(decision.action for decision in daily_decisions)),
-                    spreading_topics=sorted({item.topic for item in information if len(item.reached_agent_ids) >= 4}),
+                    spreading_topics=[topic for topic, _ in Counter(
+                        item.topic for item in information if len(set(item.reached_agent_ids)) >= 4
+                    ).most_common(2)],
                 ))
             if progress:
                 progress(day, config.days, f"Day {day}: {len(decisions)} reactions")
             await asyncio.sleep(0)
         run_id = f"run_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:6]}"
-        cascades = self._detect_cascades(information, society)
+        cascades = self._detect_cascades(information, society, social_interactions)
         community_insights = self._community_insights(agents, information, society)
         summary = analyze(run_id, config.seed, config.days, agents, decisions, society.graph, opinion_changes, scenario, social_interactions)
         if cascades:
@@ -159,7 +164,7 @@ class SimulationEngine:
             "recommend": .12, "criticize": -.1, "ignore": -.04, "reject": -.13,
             "uninstall": -.15, "cancel": -.16, "return_later": .01,
         }[decision.action]
-        readiness = f["value"] * agent.opinion.trust * (.55 + .45 * agent.opinion.price_acceptance)
+        readiness = f["value"] * agent.opinion.trust * (.25 + .75 * agent.opinion.price_acceptance)
         agent.opinion.purchase_intent = clamp(agent.opinion.purchase_intent * .65 + readiness * .35 + action_effect)
         agent.opinion.recommendation_intent = clamp((agent.opinion.purchase_intent + agent.opinion.trust) / 2 - .12)
         agent.state.product_awareness = agent.opinion.awareness
@@ -201,7 +206,8 @@ class SimulationEngine:
             agent.state.peer_pressure *= .93
             agent.state.urgency *= .98
 
-    def _detect_cascades(self, information: list[InformationItem], society: SocietyGraph) -> list[OpinionCascade]:
+    def _detect_cascades(self, information: list[InformationItem], society: SocietyGraph,
+                         interactions: list[SocialInteraction]) -> list[OpinionCascade]:
         cascades = []
         for item in information:
             reached = set(item.reached_agent_ids)
@@ -209,8 +215,12 @@ class SimulationEngine:
                 continue
             groups = sorted({group for agent_id in reached for group in society.graph.nodes[agent_id].get("groups", [])})
             key = max(reached, key=lambda agent_id: society.graph.degree(agent_id))
+            subgraph = society.graph.subgraph(reached)
+            connected = nx.number_connected_components(subgraph) if subgraph.number_of_nodes() else 0
+            transmissions = sum(interaction.information_id == item.id for interaction in interactions)
             cascades.append(OpinionCascade(information_id=item.id, topic=item.topic, claim=item.claim,
-                reached=len(reached), communities=groups, key_agent_id=key))
+                stance=item.stance, reached=len(reached), communities=groups, communities_touched=connected,
+                transmission_count=transmissions, key_agent_id=key))
         return sorted(cascades, key=lambda item: item.reached, reverse=True)
 
     def _community_insights(self, agents: list[Agent], information: list[InformationItem], society: SocietyGraph) -> list[CommunityInsight]:
@@ -224,8 +234,11 @@ class SimulationEngine:
             if len(group) < 3:
                 continue
             topics = Counter(item.topic for item in information if group & set(item.reached_agent_ids))
-            score = sum(by_id[item].opinion.purchase_intent for item in group) / len(group)
-            sentiment = "positive" if score >= .58 else "negative" if score < .3 else "mixed"
+            score = sum(
+                (by_id[item].opinion.interest + by_id[item].opinion.trust + by_id[item].opinion.perceived_value) / 3
+                for item in group
+            ) / len(group)
+            sentiment = "positive" if score >= .52 else "negative" if score < .22 else "mixed"
             key = max(group, key=lambda agent_id: society.graph.degree(agent_id))
             insights.append(CommunityInsight(name=name, size=len(group), most_discussed=topics.most_common(1)[0][0] if topics else "the idea",
                 sentiment=sentiment, key_agent_id=key))

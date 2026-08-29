@@ -87,7 +87,7 @@ class ProductOpinion(BaseModel):
     @property
     def sentiment(self) -> Literal["positive", "neutral", "negative"]:
         score = (self.interest + self.trust + self.perceived_value + self.purchase_intent) / 4
-        return "positive" if score >= 0.58 else "negative" if score < 0.36 else "neutral"
+        return "positive" if score >= 0.56 else "negative" if score < 0.20 else "neutral"
 
 
 class Agent(BaseModel):

@@ -4,6 +4,8 @@ from pydantic import BaseModel, Field
 
 
 class Perception(BaseModel):
+    target_match: float = Field(default=0, ge=0, le=1)
+    perceived_affordability: float = Field(default=1, ge=0, le=1)
     perceived_problem_relevance: float = Field(ge=0, le=1)
     perceived_value: float = Field(ge=0, le=1)
     perceived_novelty: float = Field(ge=0, le=1)

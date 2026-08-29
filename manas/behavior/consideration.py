@@ -21,10 +21,14 @@ def build_consideration_set(agent: Agent, scenario: ProductScenario, event: Simu
     else:
         actions += ["wait_for_discount", "save_for_later"]
         reasons.update(wait_for_discount="A better price could change the trade-off.", save_for_later="Interest exists, but the timing is difficult.")
-        if perception.perceived_value > .48 or (agent.personality.impulsiveness > .78 and perception.perceived_problem_relevance > .5):
+        if (
+            perception.perceived_problem_relevance > .4
+            and perception.perceived_value > .34
+            and perception.perceived_affordability > .18
+        ) or (agent.personality.impulsiveness > .78 and perception.perceived_problem_relevance > .5):
             action = "subscribe" if scenario.pricing_model in {"monthly", "annual", "subscription"} else "buy_now"
             actions.append(action); reasons[action] = "The expected benefit may justify paying now."
-    if perception.perceived_risk > .65 or perception.perceived_problem_relevance < .16:
+    if perception.perceived_risk > .58 or perception.perceived_problem_relevance < .16:
         actions.append("reject"); reasons["reject"] = "The concerns outweigh the perceived relevance."
     if event.event_type in {"feature_update", "positive_review", "influencer_mention"}:
         actions.append("watch_demo"); reasons["watch_demo"] = "Seeing the product in use could settle uncertainty."

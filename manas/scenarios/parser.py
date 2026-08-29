@@ -6,6 +6,7 @@ import re
 import shlex
 
 from manas.simulation.models import ProductScenario
+from manas.scenarios.targeting import parse_target_audience
 
 
 CATEGORIES = {
@@ -88,8 +89,10 @@ def parse_scenario(
     if "AI" in technologies and "software" not in technologies:
         technologies.append("software")
     audience = target_audience or ("college students" if any(term in text for term in ("college student", "university student", "students")) else "general consumers")
+    target_profile = parse_target_audience(f"{cleaned} {audience}", primary)
     benefits = _matches(text, BENEFITS)
-    privacy = .75 if any(term in text for term in ("health", "fitness", "location", "camera", "voice", "personal data")) and technologies else .2 if technologies else .08
+    explicit_sensitive_data = any(term in text for term in ("personal data", "health data", "medical", "camera", "photos", "voice", "location tracking"))
+    privacy = .8 if explicit_sensitive_data and technologies else .55 if primary == "fitness" and technologies else .2 if technologies else .08
     effort = .75 if primary in {"fitness", "education", "productivity"} else .35
     novelty = .72 if "AI" in technologies else .45 if technologies else .25
     concerns = []
@@ -101,6 +104,7 @@ def parse_scenario(
         name=cleaned,
         description=description or cleaned,
         target_audience=audience,
+        target_profile=target_profile,
         price=max(0, price if price is not None else parsed_price or 0),
         pricing_model=pricing_model or model,
         category=primary,

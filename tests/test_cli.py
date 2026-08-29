@@ -45,7 +45,7 @@ def test_replay_compare_agents_and_export(monkeypatch, tmp_path):
 def test_benchmark_command_reports_all_sanity_checks():
     result = runner.invoke(app, ["benchmark"])
     assert result.exit_code == 0, result.output
-    assert result.output.count("PASS") == 5
+    assert result.output.count("PASS") >= 14
     assert "not evidence that MANAS predicts real populations" in result.output
 
 
