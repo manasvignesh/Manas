@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "manas"
-version = "0.3.0"
+version = "0.3.1"
 description = "Many Agents, Networked Adaptive Society - a local-first synthetic society simulator."
 readme = "README.md"
 requires-python = ">=3.11"

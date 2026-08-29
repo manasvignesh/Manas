@@ -84,6 +84,7 @@ manas runs
 manas agents latest --search Priya
 manas replay latest --price 199
 manas compare previous latest
+manas diagnose latest
 manas export latest --formats json,csv,markdown
 ```
 
@@ -91,7 +92,7 @@ Inside the conversational home, `/runs`, `/models`, `/settings`, `/help`, and `/
 
 ## What makes a synthetic person
 
-Agents have persistent identities, correlated tendencies, goals, values, active life situations, category experience, contradictions, evolving emotional and financial state, and semantic memories. The same product passes through separate perception, motivational-conflict, consideration-set, and decision-dynamics stages. High income cannot manufacture relevance, and privacy concern does not force everyone into rejection.
+Agents have persistent identities, correlated tendencies, goals, values, active life situations, category experience, contradictions, evolving emotional and financial state, and semantic memories. The same product passes through separate perception, motivational-conflict, consideration-set, and decision-dynamics stages. Explicit audience details—such as college students, age, education state, geography, interests, and technology comfort—materially affect relevance without making non-target interest impossible. High income cannot manufacture relevance, and privacy concern does not force everyone into rejection.
 
 Social interactions record the speaker, listener, relationship, transmitted claim, credibility, reaction, and result. Information can spread, mutate, cross social circles, and form detectable cascades. NetworkX provides the clustered society graph; SQLite stores complete local runs.
 
@@ -118,7 +119,11 @@ manas benchmark
 python -m manas
 ```
 
-`manas benchmark` checks affordability sensitivity, relevance over irrelevant wealth, trusted-peer influence, seed variation, and motivational contradiction handling. These are behavioral invariants, not empirical calibration.
+`manas benchmark` checks target-audience relevance, non-target conversion, price-sensitive response, price-insensitive stability, sentiment/action coherence, specific habit mechanisms, topic diversity, meaningful segment sizes, explanation diversity, and the original behavioral invariants. These are sanity checks, not empirical calibration.
+
+`manas diagnose latest` inspects a saved run for population diversity, target-match range, modifier dominance, sentiment skew, topic dominance, price sensitivity, and segment sample sizes. A warning is evidence to investigate, not a hidden automatic correction.
+
+Behavior-strength defaults are centralized in `manas/behavior/calibration.py`. They include target relevance, category and life-context strength, price sensitivity and decision coupling, social influence, privacy, routine friction, memory half-life, and the minimum reportable segment size. Changing them preserves seeded reproducibility but should always be accompanied by benchmark and golden-scenario evidence.
 
 Use `--debug` on scripted simulation and replay commands to expose technical failures and internal numeric factors. Normal output keeps implementation mechanics out of the human story.
 

@@ -32,7 +32,7 @@ def test_textual_is_not_a_dependency_or_import():
 def test_release_version_and_population_provenance_are_explicit():
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     manifest = json.loads((ROOT / "data/populations/india/manifest.json").read_text(encoding="utf-8"))
-    assert project["project"]["version"] == __version__ == "0.3.0"
+    assert project["project"]["version"] == __version__ == "0.3.1"
     assert manifest["representative"] is False
     assert manifest["calibration"] == "not_calibrated"
     assert manifest["provenance"]["sourced_data"] == []
